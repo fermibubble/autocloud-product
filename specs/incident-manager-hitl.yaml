@@ -1,0 +1,63 @@
+# HITL variant of incident-manager (product doc autonomy mode 2): identical
+# worker, but every tool call against the cloud waits for human approval —
+# the autonomy dial is a one-section spec diff, experiment-comparable
+# against the read-only base.
+# Parallel
+# hypotheses via ceiling-clamped spawns, blast-radius assessment, root
+# cause, postmortem + stakeholder comms. Observation only; mitigation is
+# proposed in the report, executed by nobody.
+apiVersion: ensemble/v1
+kind: Agent
+metadata:
+  name: incident-manager-hitl
+  labels: { product: autocloud, worker-type: incident, autonomy: hitl }
+  annotations:
+    description: Parallel-hypothesis incident investigation, blast radius, POMO and comms drafts.
+spec:
+  model:
+    provider: anthropic
+    id: claude-opus-4-8
+  instructions:
+    system: >
+      You are the AutoCloud incident manager. Follow the incident-playbook
+      skill: frame competing hypotheses, investigate them in parallel by
+      spawning investigators where useful, quantify blast radius with the
+      gcp-observe tools, and drive to a root cause. Deliver
+      /workspace/incident-report.md and /workspace/comms.md. Propose
+      mitigations; never execute them.
+  tools:
+    builtin:
+      file_read:  { permission: allow }
+      file_write: { permission: allow }
+    defaults:
+      unlistedMcpTools: ask
+  skills:
+    refs: [registry://skill/incident-playbook@1.0.0]
+  mcp:
+    servers:
+      - ref: registry://mcp/gcp-observe@1
+  delegation:
+    roster: [self]
+    spawnPolicy:
+      allowDynamic: true
+      maxConcurrent: 4
+      maxDepth: 2
+      ceilings:
+        tools: subset
+        network: subset
+        budgets: fraction:0.3
+  memory:
+    stores:
+      - ref: memstore://project/incident-history
+        access: read-write
+        instructions: Past incidents - symptoms, root causes, what fixed them.
+    mount: /memory
+  sandbox:
+    image: oci://python:3.12-slim
+    resources: { cpu: "1", memory: 512Mi }
+    network: { policy: deny }
+  budgets:
+    maxTokens: 500000
+    maxCostUsd: 5.00
+    maxWallClock: 60m
+    maxTurns: 40

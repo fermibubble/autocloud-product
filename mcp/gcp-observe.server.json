@@ -1,0 +1,5 @@
+{
+  "name": "gcp-observe",
+  "description": "Read-only GCP observability: asset inventory, Cloud Monitoring metrics, Cloud Logging search, Cloud Run services, cost recommendations. Credentials live with this server, never in sandboxes; the surface contains no mutating verbs.",
+  "remotes": [{ "type": "streamable-http", "url": "http://127.0.0.1:7600/mcp" }]
+}

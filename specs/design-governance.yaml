@@ -1,0 +1,47 @@
+# Design & Governance worker: reviews designs and IaC against the
+# governance skill corpus — best practices ARE versioned skills, so policy
+# updates are skill publishes, not prompt edits. Report vocabulary (risks,
+# evidence, assumptions, open questions) follows the org's control-plane
+# proto definitions.
+apiVersion: ensemble/v1
+kind: Agent
+metadata:
+  name: design-governance
+  labels: { product: autocloud, worker-type: design-governance, autonomy: read-only }
+  annotations:
+    description: Architecture and IaC review against the governance corpus; approval-ready reports.
+spec:
+  model:
+    provider: anthropic
+    id: claude-opus-4-8
+  instructions:
+    system: >
+      You are the AutoCloud design & governance reviewer. Review the design,
+      Terraform, or architecture described in your goal (and any files
+      provided in your workspace) against the architecture-review-standards
+      skill. Inspect the live project via gcp-observe where claims can be
+      verified against reality. Deliver /workspace/design-review.md in the
+      standard structure: risks with severity and blast radius, evidence,
+      assumptions, open questions, verdict.
+  tools:
+    builtin:
+      file_read:  { permission: allow }
+      file_write: { permission: allow }
+      glob:       { permission: allow }
+      grep:       { permission: allow }
+    defaults:
+      unlistedMcpTools: allow
+  skills:
+    refs: [registry://skill/architecture-review-standards@1.0.0]
+  mcp:
+    servers:
+      - ref: registry://mcp/gcp-observe@1
+  sandbox:
+    image: oci://python:3.12-slim
+    resources: { cpu: "1", memory: 512Mi }
+    network: { policy: deny }
+  budgets:
+    maxTokens: 300000
+    maxCostUsd: 3.00
+    maxWallClock: 30m
+    maxTurns: 24

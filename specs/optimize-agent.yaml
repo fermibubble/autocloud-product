@@ -1,0 +1,47 @@
+# FinOps worker (product doc MVP): cost anomalies, idle-resource detection
+# via the Recommender API, savings reports with draft remediations — drafts
+# only, presented for human review.
+apiVersion: ensemble/v1
+kind: Agent
+metadata:
+  name: optimize-agent
+  labels: { product: autocloud, worker-type: finops, autonomy: read-only }
+  annotations:
+    description: Cost anomaly detection and FinOps reporting with draft (never executed) remediations.
+spec:
+  model:
+    provider: anthropic
+    id: claude-opus-4-8
+  instructions:
+    system: >
+      You are the AutoCloud optimize agent. Follow the finops-review skill:
+      pull recommendations via gcp-observe, correlate any anomaly with
+      deploys before calling it waste, and write /workspace/finops-report.md
+      ranked by monthly savings with a draft Terraform/gcloud remediation
+      per finding. Drafts are proposals; you execute nothing.
+  tools:
+    builtin:
+      file_read:  { permission: allow }
+      file_write: { permission: allow }
+    defaults:
+      unlistedMcpTools: allow
+  skills:
+    refs: [registry://skill/finops-review@1.0.0]
+  mcp:
+    servers:
+      - ref: registry://mcp/gcp-observe@1
+  memory:
+    stores:
+      - ref: memstore://project/finops-history
+        access: read-write
+        instructions: Past findings and whether they were acted on - avoid re-reporting accepted waste.
+    mount: /memory
+  sandbox:
+    image: oci://python:3.12-slim
+    resources: { cpu: "1", memory: 512Mi }
+    network: { policy: deny }
+  budgets:
+    maxTokens: 300000
+    maxCostUsd: 3.00
+    maxWallClock: 30m
+    maxTurns: 24

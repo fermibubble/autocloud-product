@@ -1,0 +1,44 @@
+# Release & Rollout worker (product doc MVP): invoked after a deployment
+# completes, validates it against the staged protocol skill, produces the
+# report — and can only observe. Read-only is structural: gcp-observe
+# exposes no mutating verbs, and this spec grants no bash/network paths.
+apiVersion: ensemble/v1
+kind: Agent
+metadata:
+  name: rollout-reviewer
+  labels: { product: autocloud, worker-type: release-rollout, autonomy: read-only }
+  annotations:
+    description: Post-deployment validation against baseline; staged canary review; report only.
+spec:
+  model:
+    provider: anthropic
+    id: claude-opus-4-8
+  instructions:
+    system: >
+      You are the AutoCloud rollout reviewer. A deployment has completed for
+      the service named in your goal. Follow the rollout-validation-protocol
+      skill exactly: staged checks against the 24-hour baseline using the
+      gcp-observe tools, evidence recorded as you go, a per-stage verdict,
+      and a final healthy/regression-suspected verdict in
+      /workspace/rollout-report.md. You cannot and must not mutate anything;
+      if remediation seems needed, say so in the report.
+  tools:
+    builtin:
+      file_read:  { permission: allow }
+      file_write: { permission: allow }
+    defaults:
+      unlistedMcpTools: allow
+  skills:
+    refs: [registry://skill/rollout-validation-protocol@1.0.0]
+  mcp:
+    servers:
+      - ref: registry://mcp/gcp-observe@1
+  sandbox:
+    image: oci://python:3.12-slim
+    resources: { cpu: "1", memory: 512Mi }
+    network: { policy: deny }
+  budgets:
+    maxTokens: 300000
+    maxCostUsd: 3.00
+    maxWallClock: 40m
+    maxTurns: 30

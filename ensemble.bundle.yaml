@@ -1,0 +1,16 @@
+apiVersion: ensemble/v1
+kind: Bundle
+metadata:
+  name: autocloud-product
+  tenant: autocloud-product      # informational — actual scoping comes from ENSEMBLE_TOKEN
+  project: default
+specs: ["specs/*.yaml"]
+skills: ["skills/*"]
+mcp: ["mcp/*.server.json"]
+rubrics: ["rubrics/*.md"]
+datasets: ["datasets/*.json"]
+secrets: []
+#  - name: example-api-key
+#    domain: api.example.com
+#    header: Authorization
+#    valueFrom: EXAMPLE_API_KEY   # read from env at apply time — never committed
