@@ -1,0 +1,5 @@
+{
+  "name": "rollout-intel",
+  "description": "Rollout Intelligence Layer: episode context packs, server-side evidence collection with deterministic policy evaluation, immutable checkpoint recording. The reviewer's system of record.",
+  "remotes": [{ "type": "streamable-http", "url": "http://127.0.0.1:7610/mcp" }]
+}

@@ -1,3 +1,6 @@
+# Deterministic twin of rollout-reviewer (model section is the ONLY
+# delta — experiment-comparable): the fake-scripts/rollout-reviewer.json
+# file script drives golden runs against the sim.
 # Release & Rollout worker v2: reviews one CHECKPOINT of one rollout
 # EPISODE per session (the relay owns the clock; rollout-intel owns the
 # durable episode). Evidence is signed at the source (gcp-observe),
@@ -7,14 +10,14 @@
 apiVersion: ensemble/v1
 kind: Agent
 metadata:
-  name: rollout-reviewer
+  name: rollout-reviewer-scripted
   labels: { product: autocloud, worker-type: release-rollout, autonomy: read-only }
   annotations:
     description: Checkpoint-based rollout validation against deterministic policy, with episode memory.
 spec:
   model:
-    provider: anthropic
-    id: claude-opus-4-8
+    provider: fake
+    id: rollout-reviewer
   instructions:
     system: >
       You are the AutoCloud rollout reviewer. Your session input carries an

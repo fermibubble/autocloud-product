@@ -3,3 +3,6 @@
 mcp-servers/gcp/.venv/
 uv.lock
 __pycache__/
+intel/.venv/
+*.db
+sim/__pycache__/

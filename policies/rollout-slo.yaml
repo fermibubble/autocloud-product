@@ -1,0 +1,42 @@
+# Versioned policy pack: the deterministic layer of the rollout verdict.
+# Rules are evaluated by rollout-intel over VERIFIED observation envelopes
+# only; the LLM interprets, this decides. Editing thresholds = new version.
+name: rollout-slo
+version: 1
+defaults:
+  window_minutes: 10
+rules:
+  - id: revision-serving
+    type: workload_serving
+    description: The service must be serving traffic on the new revision.
+    stages: ["T+0"]
+
+  - id: min-samples
+    type: min_samples
+    description: >
+      Canary traffic must reach the minimum sample count before metric
+      verdicts count as evidence; below it the honest outcome is
+      insufficient_evidence, never healthy.
+    metric_contains: request_count
+    min_count: 5000
+    stages: ["T+5", "T+15", "T+30"]
+
+  - id: p99-envelope
+    type: p99_max
+    description: P99 latency must stay at or below 250ms.
+    metric_contains: latenc
+    max_ms: 250
+    stages: ["T+5", "T+15", "T+30"]
+
+  - id: error-rate
+    type: error_rate_max
+    description: 5xx error rate must stay at or below 0.5%.
+    metric_contains: 5xx
+    max_rate: 0.005
+    stages: ["T+5", "T+15", "T+30"]
+
+  - id: no-new-fatal
+    type: no_new_fatal
+    description: No NEW fatal/critical stack patterns absent from baseline.
+    pattern: "FATAL"
+    stages: ["T+15", "T+30"]
