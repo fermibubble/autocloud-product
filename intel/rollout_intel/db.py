@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS dossier_journal(
   confidence REAL, valid_from TEXT, valid_to TEXT,
   recorded_at TEXT NOT NULL, expires_at TEXT,
   sources_json TEXT DEFAULT '[]', rationale TEXT,
-  owner_verified_by TEXT, superseded_by_rev TEXT, memory_id TEXT);
+  owner_verified_by TEXT, superseded_by_rev TEXT, memory_id TEXT,
+  activated_at TEXT);
 
 CREATE TABLE IF NOT EXISTS retrieval_audit(
   query_id TEXT PRIMARY KEY,
@@ -114,6 +115,12 @@ class Db:
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        # Dev DBs created before the dossier layer lack activated_at
+        # (CREATE IF NOT EXISTS never alters); patch in place.
+        try:
+            self._conn.execute("ALTER TABLE dossier_journal ADD COLUMN activated_at TEXT")
+        except sqlite3.OperationalError:
+            pass
         self._lock = threading.Lock()
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
