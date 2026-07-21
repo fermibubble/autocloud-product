@@ -26,8 +26,9 @@ from urllib.parse import parse_qs, urlparse
 
 from mcp.server.fastmcp import FastMCP
 
-from . import envelope, fingerprint, identity
+from . import envelope, fingerprint, identity, retrieval
 from .db import STAGE_LADDER, Db, now_iso
+from .dossier import DossierStore, MemoryProjector
 from .policy import PolicyPack, evaluate
 
 # Stage -> minutes until the next check (sim time is scaled by the relay).
@@ -63,12 +64,20 @@ class Intel:
         # re-threading envelope JSON (static scripts cannot).
         self._stage_cache: dict[tuple[str, str], list[dict]] = {}
         identity.load_catalog(self.db, catalog_path)
+        projector = MemoryProjector() if os.environ.get("ENSEMBLE_TOKEN") else None
+        self.dossiers = DossierStore(self.db, projector)
 
     # --- REST-side operations ---------------------------------------------
 
     def create_episode(self, deploy_event: dict) -> dict:
         service = identity.resolve(self.db, deploy_event)
         fp = fingerprint.from_deploy_event(deploy_event, service)
+        # An architecture change expires architecture-sensitive dossier
+        # claims before the new episode starts consulting them.
+        new_arch = fp.get("architecture_version", "")
+        if new_arch and new_arch != (service.get("architecture_version") or new_arch):
+            self.dossiers.invalidate_architecture(service["service_uid"], new_arch)
+        self.dossiers.sweep_expired()
         episode = self.db.create_episode(service["service_uid"], fp, deploy_event)
         episode["identity_status"] = service["status"]
         return episode
@@ -106,16 +115,33 @@ class Intel:
         """Accepts an episode id directly, or a service NAME — resolved to
         the unique episode with an open checkpoint at this stage. The
         service-name path is what makes deterministic scripted reviewers
-        possible (scripts can't echo per-run ids); ambiguity errors loudly."""
-        if episode_or_service.startswith("ep_"):
+        possible (scripts can't echo per-run ids); ambiguity errors loudly
+        for LIVE episodes. Fixture episodes (fx_ prefix, test-only) resolve
+        oldest-checkpoint-first instead, so a two-arm experiment can drain
+        one pre-armed checkpoint per eval session deterministically."""
+        if episode_or_service.startswith(("ep_", "fx_")):
             return episode_or_service
         rows = self.db.query(
             """SELECT c.episode_id FROM checkpoints c
                JOIN episodes e ON e.episode_id = c.episode_id
                JOIN services s ON s.service_uid = e.service_uid
-               WHERE s.name=? AND c.stage=? AND c.completed_at IS NULL""",
+               WHERE s.name=? AND c.stage=? AND c.completed_at IS NULL
+               ORDER BY c.created_at, c.checkpoint_id""",
             (episode_or_service, stage))
-        return rows[0]["episode_id"] if len(rows) == 1 else None
+        if len(rows) == 1:
+            return rows[0]["episode_id"]
+        if len(rows) > 1 and all(r["episode_id"].startswith("fx_") for r in rows):
+            return rows[0]["episode_id"]
+        return None
+
+    def resolve_service_uid(self, service: str) -> str | None:
+        """Accepts a canonical svc:// uid or a bare service name."""
+        if service.startswith("svc://"):
+            row = self.db.one("SELECT service_uid FROM services WHERE service_uid=?",
+                              (service,))
+        else:
+            row = self.db.one("SELECT service_uid FROM services WHERE name=?", (service,))
+        return row["service_uid"] if row else None
 
     def run_stage_checks(self, episode_or_service: str, stage: str) -> dict:
         """Server-side standard evidence collection: fetch the stage bundle
@@ -187,8 +213,20 @@ class Intel:
             "prior_checkpoints": prior,
             "generated_at": now_iso(),
         }
+        dossier = self.dossiers.get(episode["service_uid"], as_of)
+        pack["dossier"] = {
+            "claims": dossier["claims"],
+            "note": ("Dossier claims INFORM interpretation; they never satisfy "
+                     "a policy rule and never substitute for live evidence. "
+                     "hypothesized/asserted claims are unverified."),
+        }
+        pack["precedents"] = retrieval.find_precedents(
+            self.db, service, json.loads(episode["fingerprint_json"]),
+            as_of=as_of, exclude_episode=episode_id, episode_id=episode_id,
+            tool="get_context_pack")
         self.db.audit_retrieval(episode_id, "get_context_pack",
-                                {"as_of": as_of}, [], as_of)
+                                {"as_of": as_of},
+                                [c["rev_id"] for c in dossier["claims"]], as_of)
         return pack
 
     def record(self, episode_or_service: str, stage: str, envelopes: list[dict],
@@ -316,6 +354,72 @@ def build_mcp(intel: Intel, port: int) -> FastMCP:
         return json.dumps(intel.record(episode_or_service, stage, envs, stage_verdict,
                                        reasoning_summary, report_md, precedents, fields))
 
+    @mcp.tool()
+    def find_similar_episodes(episode_or_service: str, stage: str = "") -> str:
+        """Balanced precedents for this rollout: up to 2 healthy and 2
+        unhealthy LABELED episodes (labels come from outcomes/humans, never
+        from past agent verdicts), hard-filtered for architecture
+        compatibility, ranked by fingerprint similarity, scope-widened only
+        when the same service has too little history. Precedents inform
+        interpretation and what to check next — they never satisfy a policy
+        rule and never convert a policy fail into healthy. An
+        insufficient_precedent flag means say so rather than guess."""
+        episode_id = intel.resolve_episode(episode_or_service, stage) \
+            if stage else episode_or_service
+        episode = intel.db.one("SELECT * FROM episodes WHERE episode_id=?",
+                               (episode_id,)) if episode_id else None
+        if not episode:
+            return json.dumps({"error": f"no episode resolvable from "
+                                        f"{episode_or_service!r} (stage {stage!r})"})
+        service = intel.db.one("SELECT * FROM services WHERE service_uid=?",
+                               (episode["service_uid"],))
+        return json.dumps(retrieval.find_precedents(
+            intel.db, service, json.loads(episode["fingerprint_json"]),
+            exclude_episode=episode["episode_id"], episode_id=episode["episode_id"]))
+
+    @mcp.tool()
+    def get_dossier(service: str, as_of: str = "") -> str:
+        """The service's operational dossier: per-field claims with
+        epistemic type (approved/observed are governed truth;
+        hypothesized/asserted are unverified), confidence, and validity.
+        Claims INFORM interpretation — they never satisfy a policy rule
+        and never substitute for live evidence. Accepts the svc:// uid or
+        the bare service name; as_of (ISO time) reads the dossier as it
+        was known at that moment."""
+        uid = intel.resolve_service_uid(service)
+        if uid is None:
+            return json.dumps({"error": f"unknown service {service!r}"})
+        result = intel.dossiers.get(uid, as_of or None)
+        intel.db.audit_retrieval(None, "get_dossier",
+                                 {"service": uid, "as_of": as_of or None},
+                                 [c["rev_id"] for c in result["claims"]], as_of or None)
+        return json.dumps(result)
+
+    @mcp.tool()
+    def propose_dossier_update(service: str, field: str, value_json: str,
+                               epistemic_type: str, rationale: str,
+                               valid_to: str = "") -> str:
+        """Propose a dossier fact you observed or hypothesize about this
+        service (e.g. a stabilization window, a traffic pattern). Only
+        epistemic types 'hypothesized' or 'asserted' are accepted from
+        agents, and proposals NEVER go live directly — a human reviews and
+        promotes them (or rejects). Cite your evidence in rationale."""
+        uid = intel.resolve_service_uid(service)
+        if uid is None:
+            return json.dumps({"error": f"unknown service {service!r}"})
+        try:
+            value = json.loads(value_json)
+        except Exception:
+            return json.dumps({"error": "value_json must be valid JSON"})
+        rev = intel.dossiers.propose(uid, field, value, epistemic_type,
+                                     valid_to=valid_to or None, rationale=rationale,
+                                     agent_originated=True)
+        if "error" in rev:
+            return json.dumps(rev)
+        return json.dumps({"rev_id": rev["rev_id"], "status": rev["status"],
+                           "note": "proposal recorded; requires human promotion "
+                                   "before it appears in any dossier read"})
+
     return mcp
 
 
@@ -359,6 +463,34 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                     """SELECT observation_id,type,sig_verified,observed_at,checkpoint_id
                        FROM observations WHERE episode_id=?""", (episode_id,))
                 self._send(200, episode)
+            elif parsed.path == "/intel/dossier":
+                service = (qs.get("service") or [""])[0]
+                as_of = (qs.get("as_of") or [None])[0]
+                uid = intel.resolve_service_uid(service) if service else None
+                if uid is None:
+                    self._send(404, {"error": f"unknown service {service!r}"})
+                    return
+                self._send(200, intel.dossiers.get(uid, as_of))
+            elif parsed.path == "/intel/dossier/journal":
+                service = (qs.get("service") or [""])[0]
+                uid = intel.resolve_service_uid(service) if service else None
+                self._send(200, intel.dossiers.journal(uid))
+            elif parsed.path == "/intel/dossier/proposals":
+                self._send(200, intel.dossiers.proposals())
+            elif parsed.path == "/intel/precedents":
+                episode_id = (qs.get("episode") or [""])[0]
+                as_of = (qs.get("as_of") or [None])[0]
+                episode = intel.db.one("SELECT * FROM episodes WHERE episode_id=?",
+                                       (episode_id,))
+                if not episode:
+                    self._send(404, {"error": f"unknown episode {episode_id!r}"})
+                    return
+                service = intel.db.one("SELECT * FROM services WHERE service_uid=?",
+                                       (episode["service_uid"],))
+                self._send(200, retrieval.find_precedents(
+                    intel.db, service, json.loads(episode["fingerprint_json"]),
+                    as_of=as_of, exclude_episode=episode_id, episode_id=episode_id,
+                    tool="replay"))
             elif parsed.path == "/intel/metrics/decision-quality":
                 self._send(200, intel.decision_quality())
             elif parsed.path == "/intel/health":
@@ -404,6 +536,62 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                          body.get("actor", ""), json.dumps(body.get("payload", {})),
                          now_iso()))
                     self._send(200, {"recorded": True})
+                elif parsed.path == "/intel/dossier/propose":
+                    # Operator path: any epistemic type, still lands as
+                    # proposed — promotion is a separate deliberate step.
+                    uid = intel.resolve_service_uid(body["service"])
+                    if uid is None:
+                        self._send(404, {"error": f"unknown service {body['service']!r}"})
+                        return
+                    rev = intel.dossiers.propose(
+                        uid, body["field"], body["value"], body["epistemic_type"],
+                        confidence=body.get("confidence"),
+                        valid_from=body.get("valid_from"), valid_to=body.get("valid_to"),
+                        expires_at=body.get("expires_at"),
+                        sources=body.get("sources"), rationale=body.get("rationale", ""),
+                        agent_originated=False)
+                    self._send(400 if "error" in rev else 200, rev)
+                elif (len(parts) == 4 and parts[:2] == ["intel", "dossier"]
+                        and parts[3] == "promote"):
+                    rev = intel.dossiers.activate(
+                        parts[2], body.get("verified_by", "operator"),
+                        body.get("epistemic_type"))
+                    self._send(400 if "error" in rev else 200, rev)
+                elif (len(parts) == 4 and parts[:2] == ["intel", "dossier"]
+                        and parts[3] == "reject"):
+                    rev = intel.dossiers.reject(parts[2], body.get("actor", "operator"))
+                    self._send(400 if "error" in rev else 200, rev)
+                elif parsed.path == "/intel/dossier/sync":
+                    self._send(200, intel.dossiers.sync())
+                elif parsed.path == "/intel/fixtures/load":
+                    # Test-only: load a labeled episode corpus with FIXED
+                    # ids (replay + experiment runs need stable references).
+                    loaded = {"services": 0, "episodes": 0, "checkpoints": 0}
+                    for svc in body.get("services", []):
+                        intel.db.upsert_service(svc)
+                        loaded["services"] += 1
+                    for ep in body.get("episodes", []):
+                        intel.db.execute(
+                            """INSERT OR REPLACE INTO episodes(episode_id,service_uid,
+                               revision_from,revision_to,fingerprint_json,deploy_event_json,
+                               started_at,status,final_verdict,final_label,labeled_at,
+                               architecture_version,created_at)
+                               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            (ep["episode_id"], ep["service_uid"],
+                             ep.get("revision_from", ""), ep.get("revision_to", ""),
+                             json.dumps(ep["fingerprint"]),
+                             json.dumps(ep.get("deploy_event", {})),
+                             ep["started_at"], ep.get("status", "closed"),
+                             ep.get("final_verdict"), ep.get("final_label"),
+                             ep.get("labeled_at"),
+                             ep["fingerprint"].get("architecture_version", ""),
+                             ep["started_at"]))
+                        loaded["episodes"] += 1
+                    for cp in body.get("open_checkpoints", []):
+                        intel.db.open_checkpoint(cp["episode_id"], cp["stage"],
+                                                 cp.get("session_id", ""), now_iso())
+                        loaded["checkpoints"] += 1
+                    self._send(200, loaded)
                 elif parsed.path == "/intel/replay/reset":
                     db_path = os.environ.get("INTEL_DB", "intel.db")
                     intel.db._conn.close()  # noqa: SLF001 — test-only endpoint

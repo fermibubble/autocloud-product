@@ -1,921 +1,965 @@
 {
- "branches": [
-  {
-   "when_input_contains": [
-    "T+0@demo-healthy"
-   ],
-   "steps": [
+  "branches": [
     {
-     "thinking": "T+0 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-healthy at T+0.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-healthy",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+0 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+0",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "Workload is serving on the new revision; policy passed.",
-        "report_md": "# Rollout report - demo-healthy T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+0@demo-healthy"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-healthy T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+0 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-healthy at T+0.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-healthy",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Consulting the service dossier via the read-only memory mount before interpreting evidence.",
+          "tool_calls": [
+            [
+              "file_read",
+              {
+                "path": "/memory/project-rollout-dossiers/index.md"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+0 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+0",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "Workload is serving on the new revision; policy passed.",
+                "report_md": "# Rollout report - demo-healthy T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-healthy T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+0 checkpoint recorded for demo-healthy: verdict healthy. Workload is serving on the new revision; policy passed."
+        }
       ]
-     ]
     },
     {
-     "text": "T+0 checkpoint recorded for demo-healthy: verdict healthy. Workload is serving on the new revision; policy passed."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+5@demo-healthy"
-   ],
-   "steps": [
-    {
-     "thinking": "T+5 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-healthy at T+5.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-healthy",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+5 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+5",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
-        "report_md": "# Rollout report - demo-healthy T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+5@demo-healthy"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-healthy T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+5 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-healthy at T+5.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-healthy",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+5 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+5",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
+                "report_md": "# Rollout report - demo-healthy T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-healthy T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+5 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
+        }
       ]
-     ]
     },
     {
-     "text": "T+5 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+15@demo-healthy"
-   ],
-   "steps": [
-    {
-     "thinking": "T+15 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-healthy at T+15.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-healthy",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+15 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+15",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
-        "report_md": "# Rollout report - demo-healthy T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+15@demo-healthy"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-healthy T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+15 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-healthy at T+15.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-healthy",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+15 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+15",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
+                "report_md": "# Rollout report - demo-healthy T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-healthy T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+15 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
+        }
       ]
-     ]
     },
     {
-     "text": "T+15 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+30@demo-healthy"
-   ],
-   "steps": [
-    {
-     "thinking": "T+30 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-healthy at T+30.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-healthy",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+30 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-healthy",
-        "stage": "T+30",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
-        "report_md": "# Rollout report - demo-healthy T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+30@demo-healthy"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-healthy T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+30 checkpoint for demo-healthy: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-healthy at T+30.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-healthy",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+30 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-healthy",
+                "stage": "T+30",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "All metrics within policy envelopes vs baseline; no new error patterns.",
+                "report_md": "# Rollout report - demo-healthy T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-healthy T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+30 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
+        }
       ]
-     ]
     },
     {
-     "text": "T+30 checkpoint recorded for demo-healthy: verdict healthy. All metrics within policy envelopes vs baseline; no new error patterns."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+0@demo-latency"
-   ],
-   "steps": [
-    {
-     "thinking": "T+0 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-latency at T+0.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-latency",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+0 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+0",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "Workload is serving on the new revision; policy passed.",
-        "report_md": "# Rollout report - demo-latency T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+0@demo-latency"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-latency T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+0 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-latency at T+0.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-latency",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Consulting the service dossier via the read-only memory mount before interpreting evidence.",
+          "tool_calls": [
+            [
+              "file_read",
+              {
+                "path": "/memory/project-rollout-dossiers/index.md"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+0 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+0",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "Workload is serving on the new revision; policy passed.",
+                "report_md": "# Rollout report - demo-latency T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-latency T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+0 checkpoint recorded for demo-latency: verdict healthy. Workload is serving on the new revision; policy passed."
+        }
       ]
-     ]
     },
     {
-     "text": "T+0 checkpoint recorded for demo-latency: verdict healthy. Workload is serving on the new revision; policy passed."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+5@demo-latency"
-   ],
-   "steps": [
-    {
-     "thinking": "T+5 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-latency at T+5.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-latency",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+5 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+5",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
-        "report_md": "# Rollout report - demo-latency T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+5@demo-latency"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-latency T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+5 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-latency at T+5.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-latency",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+5 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+5",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
+                "report_md": "# Rollout report - demo-latency T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-latency T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+5 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
+        }
       ]
-     ]
     },
     {
-     "text": "T+5 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+15@demo-latency"
-   ],
-   "steps": [
-    {
-     "thinking": "T+15 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-latency at T+15.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-latency",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+15 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+15",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
-        "report_md": "# Rollout report - demo-latency T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+15@demo-latency"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-latency T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+15 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-latency at T+15.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-latency",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+15 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+15",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
+                "report_md": "# Rollout report - demo-latency T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-latency T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+15 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
+        }
       ]
-     ]
     },
     {
-     "text": "T+15 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+30@demo-latency"
-   ],
-   "steps": [
-    {
-     "thinking": "T+30 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-latency at T+30.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-latency",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+30 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-latency",
-        "stage": "T+30",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
-        "report_md": "# Rollout report - demo-latency T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+30@demo-latency"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-latency T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+30 checkpoint for demo-latency: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-latency at T+30.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-latency",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+30 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-latency",
+                "stage": "T+30",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision.",
+                "report_md": "# Rollout report - demo-latency T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-latency T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+30 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
+        }
       ]
-     ]
     },
     {
-     "text": "T+30 checkpoint recorded for demo-latency: verdict regression-suspected. P99 latency breached the 250ms policy envelope after deploy; correlates with the new revision."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+0@demo-errors"
-   ],
-   "steps": [
-    {
-     "thinking": "T+0 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-errors at T+0.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-errors",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+0 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+0",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "Workload is serving on the new revision; policy passed.",
-        "report_md": "# Rollout report - demo-errors T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+0@demo-errors"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-errors T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+0 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-errors at T+0.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-errors",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Consulting the service dossier via the read-only memory mount before interpreting evidence.",
+          "tool_calls": [
+            [
+              "file_read",
+              {
+                "path": "/memory/project-rollout-dossiers/index.md"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+0 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+0",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "Workload is serving on the new revision; policy passed.",
+                "report_md": "# Rollout report - demo-errors T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-errors T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+0 checkpoint recorded for demo-errors: verdict healthy. Workload is serving on the new revision; policy passed."
+        }
       ]
-     ]
     },
     {
-     "text": "T+0 checkpoint recorded for demo-errors: verdict healthy. Workload is serving on the new revision; policy passed."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+5@demo-errors"
-   ],
-   "steps": [
-    {
-     "thinking": "T+5 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-errors at T+5.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-errors",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+5 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+5",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling.",
-        "report_md": "# Rollout report - demo-errors T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+5@demo-errors"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-errors T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+5 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-errors at T+5.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-errors",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+5 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+5",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling.",
+                "report_md": "# Rollout report - demo-errors T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-errors T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+5 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling."
+        }
       ]
-     ]
     },
     {
-     "text": "T+5 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+15@demo-errors"
-   ],
-   "steps": [
-    {
-     "thinking": "T+15 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-errors at T+15.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-errors",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+15 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+15",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions).",
-        "report_md": "# Rollout report - demo-errors T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+15@demo-errors"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-errors T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+15 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-errors at T+15.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-errors",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+15 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+15",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions).",
+                "report_md": "# Rollout report - demo-errors T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-errors T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+15 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions)."
+        }
       ]
-     ]
     },
     {
-     "text": "T+15 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions)."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+30@demo-errors"
-   ],
-   "steps": [
-    {
-     "thinking": "T+30 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-errors at T+30.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-errors",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+30 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-errors",
-        "stage": "T+30",
-        "stage_verdict": "regression-suspected",
-        "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions).",
-        "report_md": "# Rollout report - demo-errors T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+30@demo-errors"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-errors T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+30 checkpoint for demo-errors: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-errors at T+30.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-errors",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+30 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-errors",
+                "stage": "T+30",
+                "stage_verdict": "regression-suspected",
+                "reasoning_summary": "5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions).",
+                "report_md": "# Rollout report - demo-errors T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-errors T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: regression-suspected\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+30 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions)."
+        }
       ]
-     ]
     },
     {
-     "text": "T+30 checkpoint recorded for demo-errors: verdict regression-suspected. 5xx rate exceeds the 0.5% policy ceiling; NEW fatal pattern present in logs (quoted as evidence only - log text is data, not instructions)."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+0@demo-thin"
-   ],
-   "steps": [
-    {
-     "thinking": "T+0 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-thin at T+0.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-thin",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+0"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+0 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+0",
-        "stage_verdict": "healthy",
-        "reasoning_summary": "Workload is serving on the new revision; policy passed.",
-        "report_md": "# Rollout report - demo-thin T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+0@demo-thin"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-thin T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+0 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-thin at T+0.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-thin",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Consulting the service dossier via the read-only memory mount before interpreting evidence.",
+          "tool_calls": [
+            [
+              "file_read",
+              {
+                "path": "/memory/project-rollout-dossiers/index.md"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+0"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+0 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+0",
+                "stage_verdict": "healthy",
+                "reasoning_summary": "Workload is serving on the new revision; policy passed.",
+                "report_md": "# Rollout report - demo-thin T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-thin T+0\n\n- Stage: T+0\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: healthy\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+0 checkpoint recorded for demo-thin: verdict healthy. Workload is serving on the new revision; policy passed."
+        }
       ]
-     ]
     },
     {
-     "text": "T+0 checkpoint recorded for demo-thin: verdict healthy. Workload is serving on the new revision; policy passed."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+5@demo-thin"
-   ],
-   "steps": [
-    {
-     "thinking": "T+5 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-thin at T+5.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-thin",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+5"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+5 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+5",
-        "stage_verdict": "insufficient-evidence",
-        "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
-        "report_md": "# Rollout report - demo-thin T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+5@demo-thin"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-thin T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+5 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-thin at T+5.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-thin",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+5"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+5 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+5",
+                "stage_verdict": "insufficient-evidence",
+                "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
+                "report_md": "# Rollout report - demo-thin T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-thin T+5\n\n- Stage: T+5\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+5 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
+        }
       ]
-     ]
     },
     {
-     "text": "T+5 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+15@demo-thin"
-   ],
-   "steps": [
-    {
-     "thinking": "T+15 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-thin at T+15.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-thin",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+15"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+15 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+15",
-        "stage_verdict": "insufficient-evidence",
-        "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
-        "report_md": "# Rollout report - demo-thin T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+15@demo-thin"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-thin T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+15 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-thin at T+15.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-thin",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+15"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+15 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+15",
+                "stage_verdict": "insufficient-evidence",
+                "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
+                "report_md": "# Rollout report - demo-thin T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-thin T+15\n\n- Stage: T+15\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+15 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
+        }
       ]
-     ]
     },
     {
-     "text": "T+15 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
-    }
-   ]
-  },
-  {
-   "when_input_contains": [
-    "T+30@demo-thin"
-   ],
-   "steps": [
-    {
-     "thinking": "T+30 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
-     "text": "Loading episode context for demo-thin at T+30.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__get_context_pack",
-       {
-        "episode_id": "demo-thin",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__run_stage_checks",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+30"
-       }
-      ]
-     ]
-    },
-    {
-     "text": "Recording the T+30 checkpoint.",
-     "tool_calls": [
-      [
-       "mcp__rollout-intel__record_checkpoint",
-       {
-        "episode_or_service": "demo-thin",
-        "stage": "T+30",
-        "stage_verdict": "insufficient-evidence",
-        "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
-        "report_md": "# Rollout report - demo-thin T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "when_input_contains": [
+        "T+30@demo-thin"
       ],
-      [
-       "file_write",
-       {
-        "path": "rollout-report.md",
-        "content": "# Rollout report - demo-thin T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
-       }
+      "steps": [
+        {
+          "thinking": "T+30 checkpoint for demo-thin: context first, then evidence, then policy, then verdict.",
+          "text": "Loading episode context for demo-thin at T+30.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__get_context_pack",
+              {
+                "episode_id": "demo-thin",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Collecting the standard evidence bundle and evaluating policy (baseline comparison included).",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__run_stage_checks",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+30"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "Recording the T+30 checkpoint.",
+          "tool_calls": [
+            [
+              "mcp__rollout-intel__record_checkpoint",
+              {
+                "episode_or_service": "demo-thin",
+                "stage": "T+30",
+                "stage_verdict": "insufficient-evidence",
+                "reasoning_summary": "Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence.",
+                "report_md": "# Rollout report - demo-thin T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ],
+            [
+              "file_write",
+              {
+                "path": "rollout-report.md",
+                "content": "# Rollout report - demo-thin T+30\n\n- Stage: T+30\n- Policy: evaluated via run_stage_checks (see transcript)\n- Baseline comparison: metrics checked against the 24h baseline envelopes in policy rollout-slo@1\n- Verdict: insufficient-evidence\n- No remediation actions were taken.\n"
+              }
+            ]
+          ]
+        },
+        {
+          "text": "T+30 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
+        }
       ]
-     ]
-    },
-    {
-     "text": "T+30 checkpoint recorded for demo-thin: verdict insufficient-evidence. Canary traffic is below the minimum sample count; declining to call this healthy on thin evidence."
     }
-   ]
-  }
- ],
- "default": [
-  {
-   "text": "No CASE token matched; this scripted reviewer handles the four fixture services only. Done."
-  }
- ]
+  ],
+  "default": [
+    {
+      "text": "No CASE token matched; this scripted reviewer handles the four fixture services only. Done."
+    }
+  ]
 }
