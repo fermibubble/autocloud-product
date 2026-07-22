@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 from mcp.server.fastmcp import FastMCP
 
-from . import envelope, fingerprint, identity, retrieval
+from . import envelope, fingerprint, identity, learning, retrieval
 from .db import STAGE_LADDER, Db, now_iso
 from .dossier import DossierStore, MemoryProjector
 from .policy import PolicyPack, evaluate
@@ -72,11 +72,17 @@ class Intel:
     def create_episode(self, deploy_event: dict) -> dict:
         service = identity.resolve(self.db, deploy_event)
         fp = fingerprint.from_deploy_event(deploy_event, service)
-        # An architecture change expires architecture-sensitive dossier
-        # claims before the new episode starts consulting them.
+        # The event's architecture signal (not the stale service row) is
+        # what detects a change; sensitive dossier claims expire and the
+        # row learns the new version before the episode consults anything.
         new_arch = fp.get("architecture_version", "")
-        if new_arch and new_arch != (service.get("architecture_version") or new_arch):
+        stored_arch = service.get("architecture_version") or ""
+        if new_arch and stored_arch and new_arch != stored_arch:
             self.dossiers.invalidate_architecture(service["service_uid"], new_arch)
+            self.db.execute(
+                "UPDATE services SET architecture_version=? WHERE service_uid=?",
+                (new_arch, service["service_uid"]))
+            service["architecture_version"] = new_arch
         self.dossiers.sweep_expired()
         episode = self.db.create_episode(service["service_uid"], fp, deploy_event)
         episode["identity_status"] = service["status"]
@@ -270,7 +276,18 @@ class Intel:
                               "your verdict with the policy result."),
                     "policy": verdict_result}
 
+        # Dynamic scheduling (research phase 5): a GOVERNED stabilization
+        # window (approved/observed dossier claim only — governed_value
+        # refuses asserted/hypothesized) ends the ladder once this stage's
+        # offset reaches it; otherwise the full T+0/5/15/30 ladder runs.
+        stage_offset = {"T+0": 0, "T+5": 5, "T+15": 15, "T+30": 30}[stage]
+        window = self.dossiers.governed_value(
+            self.db.one("SELECT service_uid FROM episodes WHERE episode_id=?",
+                        (episode_id,))["service_uid"],
+            "stabilization_window_minutes")
         next_minutes = NEXT_CHECK_MINUTES.get(stage)
+        if isinstance(window, (int, float)) and stage_offset >= window:
+            next_minutes = None
         next_check_at = f"+{next_minutes}m" if next_minutes else None
         completed = self.db.complete_checkpoint(
             checkpoint["checkpoint_id"], stage_verdict, policy_status,
@@ -398,22 +415,28 @@ def build_mcp(intel: Intel, port: int) -> FastMCP:
     @mcp.tool()
     def propose_dossier_update(service: str, field: str, value_json: str,
                                epistemic_type: str, rationale: str,
-                               valid_to: str = "") -> str:
+                               valid_to: str = "",
+                               source_episode_ids: str = "[]") -> str:
         """Propose a dossier fact you observed or hypothesize about this
         service (e.g. a stabilization window, a traffic pattern). Only
         epistemic types 'hypothesized' or 'asserted' are accepted from
         agents, and proposals NEVER go live directly — a human reviews and
-        promotes them (or rejects). Cite your evidence in rationale."""
+        promotes them (or rejects). Cite the episode ids supporting the
+        claim in source_episode_ids (a JSON array): only support from
+        LABELED episodes counts toward machine promotion suggestions."""
         uid = intel.resolve_service_uid(service)
         if uid is None:
             return json.dumps({"error": f"unknown service {service!r}"})
         try:
             value = json.loads(value_json)
+            sources = json.loads(source_episode_ids)
+            assert isinstance(sources, list)
         except Exception:
-            return json.dumps({"error": "value_json must be valid JSON"})
+            return json.dumps({"error": "value_json must be valid JSON and "
+                                        "source_episode_ids a JSON array"})
         rev = intel.dossiers.propose(uid, field, value, epistemic_type,
                                      valid_to=valid_to or None, rationale=rationale,
-                                     agent_originated=True)
+                                     sources=sources, agent_originated=True)
         if "error" in rev:
             return json.dumps(rev)
         return json.dumps({"rev_id": rev["rev_id"], "status": rev["status"],
@@ -491,6 +514,10 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                     intel.db, service, json.loads(episode["fingerprint_json"]),
                     as_of=as_of, exclude_episode=episode_id, episode_id=episode_id,
                     tool="replay"))
+            elif parsed.path == "/intel/learning/suggestions":
+                self._send(200, learning.suggest_promotions(intel.db))
+            elif parsed.path == "/intel/learning/signal-utility":
+                self._send(200, learning.signal_utility(intel.db))
             elif parsed.path == "/intel/metrics/decision-quality":
                 self._send(200, intel.decision_quality())
             elif parsed.path == "/intel/health":
@@ -511,11 +538,15 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                         parts[2], body["stage"], body.get("session_id", "")))
                 elif (len(parts) == 4 and parts[:2] == ["intel", "episodes"]
                         and parts[3] == "outcome"):
+                    # Idempotent per (episode, horizon) so a restarted
+                    # collector re-observing a horizon updates rather than
+                    # duplicates.
                     intel.db.execute(
-                        """INSERT INTO outcomes(outcome_id,episode_id,horizon,collected_at,
-                           slo_json,rollback_detected,rollback_at,incident_refs_json,source,notes)
+                        """INSERT OR REPLACE INTO outcomes(outcome_id,episode_id,horizon,
+                           collected_at,slo_json,rollback_detected,rollback_at,
+                           incident_refs_json,source,notes)
                            VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                        (f"out_{now_iso()}_{parts[2][-6:]}", parts[2],
+                        (f"out_{parts[2]}_{body.get('horizon', 'final')}", parts[2],
                          body.get("horizon", "final"), now_iso(),
                          json.dumps(body.get("slo", {})),
                          1 if body.get("rollback_detected") else 0,

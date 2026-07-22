@@ -119,6 +119,77 @@ def test_similarity_ranks_within_label_group():
     assert result["unhealthy"][0]["episode_id"] == "ep_close"
 
 
+def test_family_rung_is_exact_equality_not_prefix():
+    """Review finding: LIKE 'checkout-%' let family 'checkout' swallow
+    'checkout-extra-*' services from the checkout-extra family."""
+    db = make_db()
+    imposter = "svc://autocloud/checkout-extra-worker/prod/us-central1"
+    db.upsert_service({"service_uid": imposter, "name": "checkout-extra-worker",
+                       "environment": "prod", "region": "us-central1",
+                       "runtime": "cloud-run", "architecture_version": "v1"})
+    add_episode(db, "ep_imposter", imposter, "healthy", "2026-02-01T00:00:00Z",
+                fingerprint=fp(service_family="checkout-extra"))
+    # Enough true family-mates that the ladder STOPS at the family rung —
+    # only then does prefix-vs-equality matter.
+    for i in range(2):
+        add_episode(db, f"ep_fam_h{i}", PEER, "healthy", f"2026-02-0{i + 2}T00:00:00Z")
+        add_episode(db, f"ep_fam_u{i}", PEER, "regressed", f"2026-02-0{i + 2}T12:00:00Z",
+                    verdict="regression-suspected")
+    result = find_precedents(db, svc_row(db), fp())
+    assert result["scope_rung"] == "family"
+    ids = [p["episode_id"] for p in result["healthy"] + result["unhealthy"]]
+    assert "ep_imposter" not in ids
+
+
+def test_as_of_offsets_are_normalized_to_utc():
+    """Review finding: lexicographic compare of '+05:30' strings against
+    stored 'Z' strings silently mis-filters labels."""
+    db = make_db()
+    add_episode(db, "ep_l", SVC, "healthy", "2026-03-01T00:00:00Z")
+    # 2026-02-28T20:00:00-05:00 == 2026-03-01T01:00:00Z — label IS visible.
+    result = find_precedents(db, svc_row(db), fp(), as_of="2026-02-28T20:00:00-05:00")
+    assert [p["episode_id"] for p in result["healthy"]] == ["ep_l"]
+    # 2026-03-01T05:00:00+05:30 == 2026-02-28T23:30:00Z — label NOT visible.
+    result = find_precedents(db, svc_row(db), fp(), as_of="2026-03-01T05:00:00+05:30")
+    assert result["healthy"] == []
+
+
+def test_unknown_architecture_is_not_a_wildcard():
+    db = make_db()
+    add_episode(db, "ep_noarch", SVC, "healthy", "2026-02-01T00:00:00Z", arch="")
+    result = find_precedents(db, svc_row(db), fp(architecture_version="v1"))
+    assert result["healthy"] == []
+
+
+def test_widening_is_monotonic_family_survivors_kept():
+    """Review finding: reaching the runtime rung used to REPLACE the
+    candidate set, dropping family-mates whose runtime differed."""
+    db = make_db()
+    batch_peer = "svc://autocloud/checkout-batch/prod/us-central1"
+    db.upsert_service({"service_uid": batch_peer, "name": "checkout-batch",
+                       "environment": "prod", "region": "us-central1",
+                       "runtime": "batch", "architecture_version": "v1"})
+    # One unhealthy family-mate on a DIFFERENT runtime...
+    add_episode(db, "ep_batch_u", batch_peer, "regressed", "2026-02-01T00:00:00Z",
+                verdict="regression-suspected")
+    # ...and same-runtime strangers that force the runtime rung.
+    stranger = "svc://autocloud/billing-api/prod/us-central1"
+    db.upsert_service({"service_uid": stranger, "name": "billing-api",
+                       "environment": "prod", "region": "us-central1",
+                       "runtime": "cloud-run", "architecture_version": "v1"})
+    for i in range(2):
+        add_episode(db, f"ep_str_h{i}", stranger, "healthy", f"2026-02-0{i + 2}T00:00:00Z",
+                    fingerprint=fp(service_family="billing"))
+        add_episode(db, f"ep_str_u{i}", stranger, "rolled_back", f"2026-02-0{i + 2}T12:00:00Z",
+                    verdict="regression-suspected",
+                    fingerprint=fp(service_family="billing"))
+    result = find_precedents(db, svc_row(db), fp())
+    unhealthy_ids = [p["episode_id"] for p in result["unhealthy"]]
+    # The family-mate outranks strangers by fingerprint similarity and
+    # must survive the widening to the runtime rung.
+    assert "ep_batch_u" in unhealthy_ids
+
+
 def test_every_retrieval_is_audited():
     db = make_db()
     add_episode(db, "ep_h", SVC, "healthy", "2026-02-01T00:00:00Z")

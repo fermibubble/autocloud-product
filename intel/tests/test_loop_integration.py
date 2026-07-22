@@ -150,3 +150,61 @@ def test_decision_quality_metrics(world, intel):
     assert metrics["falseSafe"] == 0  # verdict was regression-suspected: correct
 
     importlib.invalidate_caches()
+
+
+def test_architecture_change_via_deploy_event_expires_sensitive_claims(world, intel):
+    """Review finding: the old comparison read the architecture from the
+    same service row it compared against, so invalidation never fired.
+    The deploy EVENT is the authority; a v2 deploy must expire
+    architecture-sensitive dossier claims and teach the row v2."""
+    uid = "svc://autocloud/demo-healthy/prod/us-central1"
+    rev = intel.dossiers.propose(uid, "p99_baseline_ms", 185, "asserted",
+                                 agent_originated=False)
+    intel.dossiers.activate(rev["rev_id"], "op")
+    rev2 = intel.dossiers.propose(uid, "owner_notes", "team-a", "asserted",
+                                  agent_originated=False)
+    intel.dossiers.activate(rev2["rev_id"], "op")
+
+    event = world.deploy("demo-healthy", architecture_version="v2")
+    episode = intel.create_episode(event)
+
+    claims = intel.dossiers.get(uid)["claims"]
+    assert [c["field"] for c in claims] == ["owner_notes"]  # sensitive claim gone
+    svc = intel.db.one("SELECT architecture_version FROM services WHERE service_uid=?", (uid,))
+    assert svc["architecture_version"] == "v2"
+    assert episode["architecture_version"] == "v2"
+
+
+def test_governed_window_ends_ladder_early(world, intel):
+    """Dynamic scheduling: an OBSERVED stabilization window of 15 minutes
+    ends the ladder at T+15 (3 checkpoints); an ASSERTED window must not."""
+    uid = "svc://autocloud/demo-healthy/prod/us-central1"
+    rev = intel.dossiers.propose(uid, "stabilization_window_minutes", 15, "asserted",
+                                 agent_originated=False)
+    intel.dossiers.activate(rev["rev_id"], "op", epistemic_type="observed")
+
+    event = world.deploy("demo-healthy")
+    episode = intel.create_episode(event)
+    for stage in ("T+0", "T+5", "T+15"):
+        intel.open_checkpoint(episode["episode_id"], stage, f"ses_{stage}")
+        intel.run_stage_checks(episode["episode_id"], stage)
+        result = intel.record(episode["episode_id"], stage, [], "healthy", "ok", "# r", [], [])
+        assert "error" not in result, result
+    assert result["next_check_at"] is None
+    row = intel.db.one("SELECT status, final_verdict FROM episodes WHERE episode_id=?",
+                       (episode["episode_id"],))
+    assert row["status"] == "awaiting_outcome" and row["final_verdict"] == "healthy"
+
+    # An asserted (ungoverned) window on demo-thin changes nothing: T+15
+    # still schedules a next check.
+    uid_thin = "svc://autocloud/demo-thin/prod/us-central1"
+    rev = intel.dossiers.propose(uid_thin, "stabilization_window_minutes", 15, "asserted",
+                                 agent_originated=False)
+    intel.dossiers.activate(rev["rev_id"], "op")  # stays asserted
+    event = world.deploy("demo-thin")
+    episode = intel.create_episode(event)
+    intel.open_checkpoint(episode["episode_id"], "T+15", "ses_t15")
+    intel.run_stage_checks(episode["episode_id"], "T+15")
+    result = intel.record(episode["episode_id"], "T+15", [], "insufficient-evidence",
+                          "thin", "# r", [], [])
+    assert result["next_check_at"] == "+15m"

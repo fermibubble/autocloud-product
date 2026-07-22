@@ -21,6 +21,7 @@ owner_verified_by and (optionally) upgrades the epistemic type.
 
 import json
 import os
+import threading
 import urllib.request
 
 from .db import Db, new_id, now_iso
@@ -94,11 +95,34 @@ class MemoryProjector:
         except Exception:
             return None
 
+    def retract(self, memory_id: str) -> bool:
+        """Delete a projected memory whose journal revision is no longer
+        active. Supersession-by-write handles replaced claims; this is for
+        expiry/invalidation, where there is no replacement write to do it."""
+        body = json.dumps({
+            "id": memory_id,
+            "sessionId": "intel-dossier-projection",
+            "turn": 0,
+        }).encode()
+        req = urllib.request.Request(f"{self.api}/v1/memory/delete", data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        if self.token:
+            req.add_header("Authorization", f"Bearer {self.token}")
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            return True
+        except Exception:
+            return False
+
 
 class DossierStore:
     def __init__(self, db: Db, projector: MemoryProjector | None = None):
         self.db = db
         self.projector = projector
+        # State transitions are check-then-act sequences over several
+        # statements; this lock serializes them so two concurrent
+        # promotions can never yield two active revisions of one field.
+        self._lock = threading.Lock()
 
     # --- writes -----------------------------------------------------------
 
@@ -124,26 +148,37 @@ class DossierStore:
 
     def activate(self, rev_id: str, verified_by: str,
                  epistemic_type: str | None = None) -> dict:
-        rev = self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,))
-        if not rev:
-            return {"error": f"unknown revision {rev_id}"}
-        if rev["status"] not in ("proposed",):
-            return {"error": f"revision {rev_id} is {rev['status']}, not proposed"}
-        if epistemic_type is not None:
-            if epistemic_type not in EPISTEMIC_TYPES:
-                return {"error": f"epistemic_type must be one of {sorted(EPISTEMIC_TYPES)}"}
-            self.db.execute("UPDATE dossier_journal SET epistemic_type=? WHERE rev_id=?",
-                            (epistemic_type, rev_id))
-        now = now_iso()
-        self.db.execute(
-            """UPDATE dossier_journal SET status='superseded', superseded_by_rev=?
-               WHERE service_uid=? AND field=? AND status='active'""",
-            (rev_id, rev["service_uid"], rev["field"]))
-        self.db.execute(
-            """UPDATE dossier_journal SET status='active', owner_verified_by=?,
-               activated_at=? WHERE rev_id=?""",
-            (verified_by, now, rev_id))
-        rev = self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,))
+        with self._lock:
+            rev = self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,))
+            if not rev:
+                return {"error": f"unknown revision {rev_id}"}
+            if rev["status"] not in ("proposed",):
+                return {"error": f"revision {rev_id} is {rev['status']}, not proposed"}
+            now = now_iso()
+            if rev["expires_at"] and rev["expires_at"] <= now:
+                self.db.execute(
+                    "UPDATE dossier_journal SET status='expired', deactivated_at=? "
+                    "WHERE rev_id=?", (now, rev_id))
+                return {"error": f"revision {rev_id} expired at {rev['expires_at']}; "
+                                 "propose a fresh revision instead"}
+            if epistemic_type is not None:
+                if epistemic_type not in EPISTEMIC_TYPES:
+                    return {"error": f"epistemic_type must be one of {sorted(EPISTEMIC_TYPES)}"}
+                self.db.execute("UPDATE dossier_journal SET epistemic_type=? WHERE rev_id=?",
+                                (epistemic_type, rev_id))
+            # memory_id is cleared because the successor's projection WRITE
+            # supersedes the old memory in the harness store — retraction
+            # is only for expiry, where no replacement write happens.
+            self.db.execute(
+                """UPDATE dossier_journal SET status='superseded', superseded_by_rev=?,
+                   deactivated_at=?, memory_id=NULL
+                   WHERE service_uid=? AND field=? AND status='active'""",
+                (rev_id, now, rev["service_uid"], rev["field"]))
+            self.db.execute(
+                """UPDATE dossier_journal SET status='active', owner_verified_by=?,
+                   activated_at=? WHERE rev_id=?""",
+                (verified_by, now, rev_id))
+            rev = self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,))
         if self.projector is not None:
             memory_id = self.projector.project(rev)
             if memory_id:
@@ -153,52 +188,75 @@ class DossierStore:
         return rev
 
     def reject(self, rev_id: str, actor: str) -> dict:
-        self.db.execute(
-            "UPDATE dossier_journal SET status='rejected', owner_verified_by=? "
-            "WHERE rev_id=? AND status='proposed'", (actor, rev_id))
-        return self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,)) or \
-            {"error": f"unknown revision {rev_id}"}
+        with self._lock:
+            self.db.execute(
+                "UPDATE dossier_journal SET status='rejected', owner_verified_by=? "
+                "WHERE rev_id=? AND status='proposed'", (actor, rev_id))
+            return self.db.one("SELECT * FROM dossier_journal WHERE rev_id=?", (rev_id,)) or \
+                {"error": f"unknown revision {rev_id}"}
+
+    def _retract_projections(self, revs: list[dict]) -> None:
+        """Expired/invalidated claims must also leave the memstore
+        projection — there is no replacement write to supersede them."""
+        if self.projector is None:
+            return
+        for rev in revs:
+            if rev.get("memory_id") and self.projector.retract(rev["memory_id"]):
+                self.db.execute(
+                    "UPDATE dossier_journal SET memory_id=NULL WHERE rev_id=?",
+                    (rev["rev_id"],))
 
     def sweep_expired(self) -> int:
         now = now_iso()
-        cur = self.db.execute(
-            "UPDATE dossier_journal SET status='expired' "
-            "WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= ?", (now,))
+        with self._lock:
+            doomed = self.db.query(
+                "SELECT rev_id, memory_id FROM dossier_journal "
+                "WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= ?", (now,))
+            cur = self.db.execute(
+                "UPDATE dossier_journal SET status='expired', deactivated_at=? "
+                "WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= ?",
+                (now, now))
+        self._retract_projections(doomed)
         return cur.rowcount
 
     def invalidate_architecture(self, service_uid: str, new_arch_version: str) -> int:
         """An architecture change expires architecture-sensitive active
-        claims — recorded as expiry, never deletion (the journal is
-        append-only in spirit; history stays queryable via as_of)."""
+        claims — recorded as expiry (with the deactivation instant), never
+        deletion: history stays queryable via as_of."""
+        now = now_iso()
         placeholders = ",".join("?" for _ in ARCH_SENSITIVE_FIELDS)
-        cur = self.db.execute(
-            f"""UPDATE dossier_journal SET status='expired',
-                rationale = COALESCE(rationale,'') || ' [expired: architecture change to '||?||']'
-                WHERE service_uid=? AND status='active' AND field IN ({placeholders})""",
-            (new_arch_version, service_uid, *sorted(ARCH_SENSITIVE_FIELDS)))
+        with self._lock:
+            doomed = self.db.query(
+                f"""SELECT rev_id, memory_id FROM dossier_journal
+                    WHERE service_uid=? AND status='active' AND field IN ({placeholders})""",
+                (service_uid, *sorted(ARCH_SENSITIVE_FIELDS)))
+            cur = self.db.execute(
+                f"""UPDATE dossier_journal SET status='expired', deactivated_at=?,
+                    rationale = COALESCE(rationale,'') || ' [expired: architecture change to '||?||']'
+                    WHERE service_uid=? AND status='active' AND field IN ({placeholders})""",
+                (now, new_arch_version, service_uid, *sorted(ARCH_SENSITIVE_FIELDS)))
+        self._retract_projections(doomed)
         return cur.rowcount
 
     # --- reads ------------------------------------------------------------
 
     def get(self, service_uid: str, as_of: str | None = None) -> dict:
         """Per-field claims as of a record time (default: now). A revision
-        is visible at `as_of` if it had been activated by then and had not
-        yet been superseded — superseded_by_rev's activation time is the
-        deactivation instant, which is what makes replay time-correct."""
+        is visible at `as_of` iff it had been activated by then and not yet
+        deactivated — deactivated_at is stamped uniformly by supersession,
+        expiry sweeps, and architecture invalidation, which is what makes
+        replay time-correct (an expired claim never resurrects)."""
         if as_of is None:
             rows = self.db.query(
                 "SELECT * FROM dossier_journal WHERE service_uid=? AND status='active' "
                 "ORDER BY field", (service_uid,))
         else:
             rows = self.db.query(
-                """SELECT j.* FROM dossier_journal j
-                   WHERE j.service_uid=? AND j.activated_at IS NOT NULL
-                     AND j.activated_at <= ?
-                     AND j.status IN ('active','superseded','expired')
-                     AND NOT EXISTS (
-                       SELECT 1 FROM dossier_journal s
-                       WHERE s.rev_id = j.superseded_by_rev AND s.activated_at <= ?)
-                   ORDER BY j.field""", (service_uid, as_of, as_of))
+                """SELECT * FROM dossier_journal
+                   WHERE service_uid=? AND activated_at IS NOT NULL
+                     AND activated_at <= ?
+                     AND (deactivated_at IS NULL OR deactivated_at > ?)
+                   ORDER BY field""", (service_uid, as_of, as_of))
         claims = [{
             "field": r["field"],
             "value": json.loads(r["value_json"]),
@@ -212,6 +270,19 @@ class DossierStore:
         } for r in rows]
         return {"service_uid": service_uid, "as_of": as_of or now_iso(), "claims": claims}
 
+    def governed_value(self, service_uid: str, field: str):
+        """The active claim's value, but ONLY if its epistemic type is
+        governed truth (approved/observed). Scheduling and any other
+        behavior-changing consumer must use this — an asserted or
+        hypothesized window shortening real soak time would be the memory
+        deciding, not informing."""
+        row = self.db.one(
+            """SELECT value_json FROM dossier_journal
+               WHERE service_uid=? AND field=? AND status='active'
+                 AND epistemic_type IN ('approved','observed')""",
+            (service_uid, field))
+        return json.loads(row["value_json"]) if row else None
+
     def journal(self, service_uid: str | None = None) -> list[dict]:
         if service_uid:
             return self.db.query(
@@ -224,7 +295,10 @@ class DossierStore:
             "SELECT * FROM dossier_journal WHERE status='proposed' ORDER BY recorded_at")
 
     def sync(self) -> dict:
-        """Re-project every active revision (gateway-outage repair)."""
+        """Repair the projection after a gateway outage: re-project every
+        active revision AND retract orphans — non-active revisions whose
+        projected memory outlived them (e.g. expiry while the gateway was
+        down)."""
         if self.projector is None:
             return {"error": "no projector configured"}
         active = self.db.query("SELECT * FROM dossier_journal WHERE status='active'")
@@ -235,4 +309,9 @@ class DossierStore:
                 self.db.execute("UPDATE dossier_journal SET memory_id=? WHERE rev_id=?",
                                 (memory_id, rev["rev_id"]))
                 projected += 1
-        return {"active": len(active), "projected": projected}
+        orphans = self.db.query(
+            "SELECT rev_id, memory_id FROM dossier_journal "
+            "WHERE status != 'active' AND memory_id IS NOT NULL")
+        self._retract_projections(orphans)
+        return {"active": len(active), "projected": projected,
+                "orphans_retracted": len(orphans)}

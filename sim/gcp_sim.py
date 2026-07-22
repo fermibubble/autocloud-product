@@ -75,7 +75,7 @@ class World:
                 "scenario": dict(sc),
             }
 
-    def deploy(self, service: str) -> dict:
+    def deploy(self, service: str, architecture_version: str | None = None) -> dict:
         with self.lock:
             svc = self.services[service]
             old = svc["revision"]
@@ -95,6 +95,11 @@ class World:
                 "change_classes": ["application_binary"],
                 "at": time.time(),
             }
+            if architecture_version:
+                # e.g. POST /world/deploy {"service": ..., "architecture_version": "v2"}
+                # exercises rollout-intel's architecture-change invalidation.
+                event["architecture_version"] = architecture_version
+                event["change_classes"] = ["application_binary", "infra"]
             self.deployments.append(event)
             return event
 
@@ -249,10 +254,16 @@ class WorldFace(BaseHTTPRequestHandler):
         if self.path == "/world/deployments":
             self._send(200, self.world.deployments)
         elif self.path == "/world/services":
+            # `truth` is the ground-truth surface the outcome collector
+            # labels from — in production this is your monitoring system;
+            # here the world itself answers.
             self._send(200, {
                 name: {"revision": s["revision"], "deployed_at": s["deployed_at"],
                        "fault": self.world.faults.get(name),
-                       "rolled_back": name in self.world.rollbacks}
+                       "rolled_back": name in self.world.rollbacks,
+                       "truth": {"p99_ms": self.world.p99_ms(name),
+                                 "error_rate": self.world.err_rate(name),
+                                 "rps": s["scenario"]["rps"]}}
                 for name, s in self.world.services.items()
             })
         elif self.path == "/world/seed":
@@ -268,7 +279,7 @@ class WorldFace(BaseHTTPRequestHandler):
             if service not in self.world.services:
                 self._send(404, {"error": f"unknown service {service}"})
                 return
-            self._send(200, self.world.deploy(service))
+            self._send(200, self.world.deploy(service, body.get("architecture_version")))
         elif self.path == "/world/faults":
             service, fault = body.get("service", ""), body.get("type", "")
             if service not in self.world.services:

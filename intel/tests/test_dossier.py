@@ -10,15 +10,20 @@ SVC = "svc://autocloud/demo-healthy/prod/us-central1"
 
 
 class RecordingProjector(MemoryProjector):
-    """Captures projection payloads instead of calling the gateway."""
+    """Captures projection/retraction calls instead of hitting the gateway."""
 
     def __init__(self):
         super().__init__(api_base="http://unused", token="unused")
         self.projected: list[dict] = []
+        self.retracted: list[str] = []
 
     def project(self, rev: dict) -> str | None:
         self.projected.append(rev)
         return f"mem_{len(self.projected)}"
+
+    def retract(self, memory_id: str) -> bool:
+        self.retracted.append(memory_id)
+        return True
 
 
 def make_store():
@@ -93,13 +98,77 @@ def test_architecture_change_expires_sensitive_fields_only():
     assert [c["field"] for c in claims] == ["owner_notes"]
 
 
-def test_expiry_sweep():
+def test_expiry_sweep_and_expired_activation_guard():
     store, _ = make_store()
+    # An already-expired proposal can never activate (review finding).
+    stale = store.propose(SVC, "p99_baseline_ms", 170, "asserted",
+                          expires_at="2000-01-01T00:00:00Z")
+    result = store.activate(stale["rev_id"], "op")
+    assert "error" in result and "expired" in result["error"]
+    assert store.get(SVC)["claims"] == []
+
+    # A live claim whose expiry passes is swept out of the active view.
     rev = store.propose(SVC, "p99_baseline_ms", 180, "asserted",
-                        expires_at="2000-01-01T00:00:00Z")
+                        expires_at="2999-01-01T00:00:00Z")
     store.activate(rev["rev_id"], "op")
+    store.db.execute("UPDATE dossier_journal SET expires_at='2000-01-01T00:00:00Z' "
+                     "WHERE rev_id=?", (rev["rev_id"],))
     assert store.sweep_expired() == 1
     assert store.get(SVC)["claims"] == []
+
+
+def test_expired_claim_never_resurrects_in_as_of():
+    """Review finding: expiry used to record no deactivation instant, so
+    as_of reads after the sweep returned the expired claim — and both it
+    and its successor at once."""
+    store, _ = make_store()
+    r1 = store.propose(SVC, "p99_baseline_ms", 180, "asserted",
+                       expires_at="2000-01-01T00:00:00Z")
+    store.activate(r1["rev_id"], "op")  # activated despite expiry? no — guard
+    # r1 was already expired at activation time, so it never went live.
+    assert store.get(SVC)["claims"] == []
+
+    r2 = store.propose(SVC, "p99_baseline_ms", 185, "asserted",
+                       expires_at="2999-01-01T00:00:00Z")
+    store.activate(r2["rev_id"], "op")
+    time.sleep(1.1)
+    t_after = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    # Force-expire r2 by rewriting its expiry into the past, then sweep.
+    store.db.execute("UPDATE dossier_journal SET expires_at='2000-01-02T00:00:00Z' "
+                     "WHERE rev_id=?", (r2["rev_id"],))
+    time.sleep(1.1)
+    assert store.sweep_expired() == 1
+    # Before the sweep instant r2 was legitimately in force...
+    assert [c["value"] for c in store.get(SVC, as_of=t_after)["claims"]] == [185]
+    # ...after it, nothing resurrects.
+    t_now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    time.sleep(1.1)
+    assert store.get(SVC, as_of=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))["claims"] == []
+    assert t_now  # (t_now retained for debuggability on failure)
+
+
+def test_expiry_retracts_projection():
+    store, projector = make_store()
+    rev = store.propose(SVC, "p99_baseline_ms", 180, "asserted",
+                        expires_at="2999-01-01T00:00:00Z")
+    store.activate(rev["rev_id"], "op")
+    assert len(projector.projected) == 1
+    store.db.execute("UPDATE dossier_journal SET expires_at='2000-01-01T00:00:00Z' "
+                     "WHERE rev_id=?", (rev["rev_id"],))
+    store.sweep_expired()
+    assert projector.retracted == ["mem_1"]
+    journal = store.journal(SVC)
+    assert journal[0]["memory_id"] is None and journal[0]["deactivated_at"]
+
+
+def test_architecture_invalidation_retracts_and_stamps():
+    store, projector = make_store()
+    rev = store.propose(SVC, "p99_baseline_ms", 180, "asserted")
+    store.activate(rev["rev_id"], "op")
+    assert store.invalidate_architecture(SVC, "v2") == 1
+    assert projector.retracted == ["mem_1"]
+    row = store.journal(SVC)[0]
+    assert row["status"] == "expired" and row["deactivated_at"]
 
 
 def test_topic_namespacing_per_service_and_field():

@@ -89,6 +89,12 @@ def run_episode(episode: dict) -> None:
         this = next((c for c in cps if c["stage"] == stage), {})
         if this.get("completed_at"):
             prior = f"{stage} {this.get('stage_verdict')}({this.get('policy_status')})"
+            # rollout-intel owns scheduling: no next check means the ladder
+            # is over (last stage, or a governed stabilization window ended
+            # it early) — the relay never second-guesses that.
+            if this.get("next_check_at") is None:
+                print(f"relay: episode {episode_id} ladder ended by scheduler at {stage}")
+                break
         else:
             prior = f"{stage} NOT RECORDED (session {status})"
             print(f"relay: WARNING {episode_id} {stage} session ended without record_checkpoint")

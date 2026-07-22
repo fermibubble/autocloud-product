@@ -9,7 +9,11 @@ def from_deploy_event(event: dict, service: dict) -> dict:
         "service_family": service["name"].rsplit("-", 1)[0],
         "runtime": service.get("runtime") or "cloud-run",
         "environment": service.get("environment", "prod"),
-        "architecture_version": service.get("architecture_version", "v1"),
+        # The deploy event is the authority on which architecture is being
+        # rolled out; the service row only remembers the last one seen —
+        # this asymmetry is what makes architecture-change detection real.
+        "architecture_version": (event.get("architecture_version")
+                                 or service.get("architecture_version", "v1")),
         "strategy": event.get("strategy", "unknown"),
         "change_classes": sorted(event.get("change_classes", [])),
         "image_digest": event.get("image_digest", ""),

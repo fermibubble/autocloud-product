@@ -22,6 +22,7 @@ The non-negotiables from the memory design:
     filters, what came back) so a verdict's provenance can be replayed.
 """
 
+import datetime
 import json
 
 from . import fingerprint
@@ -30,8 +31,23 @@ from .db import Db
 HEALTHY_LABELS = ("healthy",)
 UNHEALTHY_LABELS = ("regressed", "rolled_back")
 
-# Widening ladder rungs, in order. Each returns (sql_condition, params).
 _MIN_PER_SIDE = 2
+
+
+def to_utc_z(ts: str | None) -> str | None:
+    """Normalize an ISO timestamp to UTC 'Z' form. Every stored timestamp
+    is already Z (now_iso), but as_of arrives from callers — a +05:30
+    offset compared lexicographically against Z strings would silently
+    leak future labels into replay."""
+    if not ts:
+        return ts
+    try:
+        dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return ts
 
 
 def _candidates(db: Db, rung: str, service: dict, fp: dict, as_of: str | None,
@@ -44,16 +60,21 @@ def _candidates(db: Db, rung: str, service: dict, fp: dict, as_of: str | None,
     if exclude_episode:
         where.append("e.episode_id != ?")
         params.append(exclude_episode)
-    # Architecture compatibility is a hard filter on every rung.
-    where.append("(e.architecture_version = ? OR e.architecture_version = '')")
+    # Architecture compatibility is a hard filter on every rung, and it is
+    # strict: an unknown ('') architecture is only compatible with unknown —
+    # "we don't know what this ran on" is not a wildcard.
+    where.append("e.architecture_version = ?")
     params.append(fp.get("architecture_version", ""))
 
     if rung == "service":
         where.append("e.service_uid = ?")
         params.append(service["service_uid"])
     elif rung == "family":
-        where.append("s.name LIKE ? AND s.environment = ?")
-        params.extend([fp.get("service_family", "") + "-%", service.get("environment", "prod")])
+        # Exact family equality from the episode's own fingerprint — a
+        # name-prefix LIKE would let family 'demo' swallow 'demo-x-*'.
+        where.append("json_extract(e.fingerprint_json,'$.service_family') = ?"
+                     " AND s.environment = ?")
+        params.extend([fp.get("service_family", ""), service.get("environment", "prod")])
     elif rung == "runtime":
         where.append("s.runtime = ? AND s.environment = ?")
         params.extend([service.get("runtime", "cloud-run"),
@@ -68,10 +89,15 @@ def find_precedents(db: Db, service: dict, fp: dict, as_of: str | None = None,
                     exclude_episode: str | None = None,
                     episode_id: str | None = None,
                     tool: str = "find_similar_episodes") -> dict:
+    as_of = to_utc_z(as_of)
+    # Widening is monotonic: each rung ADDS candidates (deduped by id), so
+    # reaching for runtime-mates can never lose family-mates already found.
     rung_used = None
-    candidates: list[dict] = []
+    by_id: dict[str, dict] = {}
     for rung in ("service", "family", "runtime"):
-        candidates = _candidates(db, rung, service, fp, as_of, exclude_episode)
+        for c in _candidates(db, rung, service, fp, as_of, exclude_episode):
+            by_id.setdefault(c["episode_id"], c)
+        candidates = list(by_id.values())
         healthy_n = sum(1 for c in candidates if c["final_label"] in HEALTHY_LABELS)
         unhealthy_n = sum(1 for c in candidates if c["final_label"] in UNHEALTHY_LABELS)
         rung_used = rung

@@ -77,6 +77,8 @@ def main() -> None:
     rj.add_argument("--by", default="operator")
 
     sub.add_parser("sync")
+    sub.add_parser("suggestions")
+    sub.add_parser("signal-utility")
 
     args = ap.parse_args()
     if args.cmd == "dossier" and args.dcmd == "list":
@@ -107,6 +109,10 @@ def main() -> None:
         show(call(f"/intel/dossier/{args.rev_id}/reject", {"actor": args.by}))
     elif args.cmd == "sync":
         show(call("/intel/dossier/sync", {}))
+    elif args.cmd == "suggestions":
+        show(call("/intel/learning/suggestions"))
+    elif args.cmd == "signal-utility":
+        show(call("/intel/learning/signal-utility"))
 
 
 if __name__ == "__main__":

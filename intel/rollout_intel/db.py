@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS dossier_journal(
   recorded_at TEXT NOT NULL, expires_at TEXT,
   sources_json TEXT DEFAULT '[]', rationale TEXT,
   owner_verified_by TEXT, superseded_by_rev TEXT, memory_id TEXT,
-  activated_at TEXT);
+  activated_at TEXT, deactivated_at TEXT);
 
 CREATE TABLE IF NOT EXISTS retrieval_audit(
   query_id TEXT PRIMARY KEY,
@@ -115,12 +115,13 @@ class Db:
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
-        # Dev DBs created before the dossier layer lack activated_at
-        # (CREATE IF NOT EXISTS never alters); patch in place.
-        try:
-            self._conn.execute("ALTER TABLE dossier_journal ADD COLUMN activated_at TEXT")
-        except sqlite3.OperationalError:
-            pass
+        # Dev DBs created before the dossier layer lack the bitemporal
+        # columns (CREATE IF NOT EXISTS never alters); patch in place.
+        for col in ("activated_at", "deactivated_at"):
+            try:
+                self._conn.execute(f"ALTER TABLE dossier_journal ADD COLUMN {col} TEXT")
+            except sqlite3.OperationalError:
+                pass
         self._lock = threading.Lock()
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
@@ -198,7 +199,10 @@ class Db:
             (now_iso(), stage_verdict, policy_status, policy_version,
              1 if policy_conflict else 0, version, report_md, next_check_at, checkpoint_id),
         )
-        if row["stage"] == STAGE_LADDER[-1]:
+        # The ladder ends when there is no next check — either the last
+        # ladder stage, or a governed stabilization window ended it early
+        # (dynamic scheduling). Closing keys off next_check_at, not stage.
+        if next_check_at is None:
             self.execute(
                 "UPDATE episodes SET status='awaiting_outcome', final_verdict=? WHERE episode_id=?",
                 (stage_verdict, episode_id),
