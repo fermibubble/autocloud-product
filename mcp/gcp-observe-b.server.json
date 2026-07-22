@@ -1,0 +1,16 @@
+{
+  "name": "gcp-observe-b",
+  "description": "Second observability provider (same code, different port) for capability-binding swap demos. Identical tool surface to gcp-observe; only the endpoint differs.",
+  "remotes": [{ "type": "streamable-http", "url": "http://127.0.0.1:7602/mcp" }],
+  "x-ensemble": {
+    "capabilities": ["observability"],
+    "toolScopes": {
+      "query_metrics": ["metrics:read"],
+      "search_logs": ["logs:read"],
+      "get_recommendations": ["metrics:read"],
+      "list_services": ["inventory:read"],
+      "get_asset_inventory": ["inventory:read"]
+    },
+    "priority": 90
+  }
+}

@@ -6,6 +6,7 @@ metadata:
   project: default
 specs: ["specs/*.yaml"]
 skills: ["skills/*"]
+capabilities: ["capabilities/*.yaml"]
 mcp: ["mcp/*.server.json"]
 rubrics: ["rubrics/*.md"]
 datasets: ["datasets/*.json"]

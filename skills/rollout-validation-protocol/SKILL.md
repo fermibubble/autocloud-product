@@ -1,9 +1,14 @@
 ---
 name: rollout-validation-protocol
-version: 3.0.0
-description: Checkpoint-based rollout validation - episode header parsing, context pack, server-collected signed evidence, deterministic policy, balanced labeled precedents, verdict vocabulary with insufficient-evidence as a first-class outcome, and the stage report format.
+version: 3.1.0
+description: Checkpoint-based rollout validation with capability-bound observability - episode header parsing, context pack, server-collected signed evidence, deterministic policy, balanced labeled precedents, verdict vocabulary with insufficient-evidence as a first-class outcome, and the stage report format.
+requires:
+  capabilities:
+    - name: observability
+      scopes: [metrics:read, logs:read]
+      tools: [query_metrics, search_logs]
 ---
-# Rollout validation protocol (v3 - episode checkpoints + precedents)
+# Rollout validation protocol (v3.1 - capability-bound)
 
 You review ONE checkpoint (T+0, T+5, T+15, or T+30) of ONE rollout episode
 per session. Your input's header lines tell you which:
@@ -17,9 +22,9 @@ per session. Your input's header lines tell you which:
    CANDIDATE - treat candidate scope as unconfirmed and say so), the hard
    policy rules, prior checkpoint verdicts.
 2. `run_stage_checks` - the standard evidence bundle is collected
-   server-side from gcp-observe (every observation is signed at the
-   source) and the deterministic policy is evaluated. You may gather
-   extra evidence with gcp-observe tools and `evaluate_policy`, but the
+   server-side from the observe provider (every observation is signed at
+   the source) and the deterministic policy is evaluated. You may gather
+   extra evidence with `query_metrics` and `evaluate_policy`, but the
    standard bundle is never optional.
 3. Consult precedents. The context pack (or `find_similar_episodes`)
    carries up to 2 healthy and 2 unhealthy LABELED episodes - balanced on

@@ -46,11 +46,15 @@ spec:
       unlistedMcpTools: allow
   skills:
     refs:
-      - registry://skill/rollout-validation-protocol@3.0.0
+      - registry://skill/rollout-validation-protocol@3.1.0
       - registry://skill/dossier-maintenance@1.0.0
   mcp:
+    bindings:
+      - alias: observe
+        capability: registry://observability@^1
+        prefer: [gcp-observe]
+        scopes: [metrics:read, logs:read]
     servers:
-      - ref: registry://mcp/gcp-observe@1
       - ref: registry://mcp/rollout-intel@1
   memory:
     stores:

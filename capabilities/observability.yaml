@@ -1,0 +1,13 @@
+kind: Capability
+name: observability
+version: 1.0.0
+description: Read-side telemetry — metrics, logs, service inventory.
+ceiling:
+  scopes: [metrics:read, logs:read, inventory:read]
+  allowDestructive: false
+  allowOpenWorld: false
+  minTrust: claimed
+  defaults: { read: allow }
+required:
+  scopes: [metrics:read, logs:read]
+  tools: [query_metrics, search_logs]
