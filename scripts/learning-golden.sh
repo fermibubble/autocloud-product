@@ -45,7 +45,7 @@ suggestions() {
 
 echo "== below threshold: 2 labeled citations"
 propose deploy_risk_note '"binary-only deploys stabilize fast"' '["fx_ep_016","fx_ep_017"]' > /dev/null
-COUNT=$(suggestions | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["suggestions"]))')
+COUNT=$(suggestions | python3 -c 'import json,sys; print(len([x for x in json.load(sys.stdin)["suggestions"] if x["field"]=="deploy_risk_note"]))')
 [ "$COUNT" = "0" ] || { echo "FAIL: suggested below recurrence threshold"; exit 1; }
 echo "  no suggestion (correct)"
 
@@ -55,8 +55,9 @@ S=$(suggestions)
 echo "$S" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-assert len(d["suggestions"])==1, d
-s=d["suggestions"][0]
+mine=[x for x in d["suggestions"] if x["field"]=="deploy_risk_note"]
+assert len(mine)==1, d
+s=mine[0]
 assert s["support"]==3 and s["field"]=="deploy_risk_note", s
 print("  suggested:", s["field"], "support=%d" % s["support"], "episodes=", s["support_episodes"])'
 
@@ -65,8 +66,10 @@ propose deploy_risk_note '"binary deploys are risky"' '["fx_ep_019"]' > /dev/nul
 suggestions | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-assert d["suggestions"]==[], "contradicted claim still suggested"
-kinds={b["kind"] for e in d["blocked"] for b in e["blocked_by"]}
+assert not [x for x in d["suggestions"] if x["field"]=="deploy_risk_note"], \
+    "contradicted claim still suggested"
+kinds={b["kind"] for e in d["blocked"] if e["field"]=="deploy_risk_note"
+       for b in e["blocked_by"]}
 assert "rival_proposal" in kinds
 print("  blocked by rival_proposal (correct)")'
 

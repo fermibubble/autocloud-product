@@ -77,18 +77,32 @@ def collect_episode(episode: dict) -> None:
             time.sleep(min(1.0, target - time.time()))
         slo = observe(service_name)
         final = horizon == HORIZONS[-1][0]
+        # A redeploy mid-soak means the truth now describes the NEWER
+        # revision — labeling this episode from it would poison the
+        # labeled corpus. Record the observation, never the label.
+        superseded = (episode.get("revision_to")
+                      and slo["revision"] != episode["revision_to"]
+                      and not slo["rolled_back"])
         payload = {
             "horizon": horizon, "slo": slo,
             "rollback_detected": slo["rolled_back"],
             "source": "collector",
-            "notes": f"ground truth at {horizon} (scaled)",
+            "notes": (f"superseded by {slo['revision']} mid-soak; not labeled"
+                      if superseded else f"ground truth at {horizon} (scaled)"),
         }
-        if final:
+        if final and not superseded:
             payload["final_label"] = label_from(slo)
-        _req(f"{INTEL}/intel/episodes/{episode_id}/outcome", payload)
-        print(f"collector: {episode_id} {horizon} p99={slo['p99_ms']} "
-              f"err={slo['error_rate']}"
-              + (f" -> label {payload['final_label']}" if final else ""))
+        try:
+            _req(f"{INTEL}/intel/episodes/{episode_id}/outcome", payload)
+        except Exception as exc:
+            print(f"collector: {episode_id} {horizon} not recorded ({exc})")
+            return
+        if final and superseded:
+            print(f"collector: {episode_id} superseded by {slo['revision']}; left unlabeled")
+        else:
+            print(f"collector: {episode_id} {horizon} p99={slo['p99_ms']} "
+                  f"err={slo['error_rate']}"
+                  + (f" -> label {payload['final_label']}" if final else ""))
 
 
 def main() -> None:

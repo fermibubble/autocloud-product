@@ -174,6 +174,18 @@ class Db:
 
     def open_checkpoint(self, episode_id: str, stage: str, session_id: str,
                         scheduled_at: str) -> dict:
+        # Idempotent while open: a relay that died between session creation
+        # and checkpoint registration re-arms the SAME open checkpoint with
+        # its new session instead of tripping UNIQUE(episode_id, stage).
+        existing = self.one(
+            """SELECT * FROM checkpoints WHERE episode_id=? AND stage=?
+               AND completed_at IS NULL""", (episode_id, stage))
+        if existing:
+            self.execute(
+                "UPDATE checkpoints SET session_id=?, scheduled_at=? WHERE checkpoint_id=?",
+                (session_id, scheduled_at, existing["checkpoint_id"]))
+            return self.one("SELECT * FROM checkpoints WHERE checkpoint_id=?",
+                            (existing["checkpoint_id"],))
         checkpoint_id = new_id("cp")
         self.execute(
             """INSERT INTO checkpoints(checkpoint_id,episode_id,stage,scheduled_at,
@@ -186,19 +198,24 @@ class Db:
 
     def complete_checkpoint(self, checkpoint_id: str, stage_verdict: str, policy_status: str,
                             policy_version: str, policy_conflict: bool, report_md: str,
-                            next_check_at: str | None) -> dict:
+                            next_check_at: str | None) -> dict | None:
+        """Returns None when the checkpoint was already completed — the
+        caller lost the race and must not report success or touch the
+        episode (lost-update guard from adversarial review)."""
         row = self.one("SELECT * FROM checkpoints WHERE checkpoint_id=?", (checkpoint_id,))
         episode_id = row["episode_id"]
         version = 1 + (self.one(
             "SELECT COALESCE(MAX(report_version),0) AS v FROM checkpoints WHERE episode_id=?",
             (episode_id,))["v"] or 0)
-        self.execute(
+        cur = self.execute(
             """UPDATE checkpoints SET completed_at=?, stage_verdict=?, policy_status=?,
                policy_version=?, policy_conflict=?, report_version=?, report_md=?, next_check_at=?
                WHERE checkpoint_id=? AND completed_at IS NULL""",
             (now_iso(), stage_verdict, policy_status, policy_version,
              1 if policy_conflict else 0, version, report_md, next_check_at, checkpoint_id),
         )
+        if cur.rowcount == 0:
+            return None
         # The ladder ends when there is no next check — either the last
         # ladder stage, or a governed stabilization window ended it early
         # (dynamic scheduling). Closing keys off next_check_at, not stage.

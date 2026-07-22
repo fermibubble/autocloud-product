@@ -208,3 +208,45 @@ def test_governed_window_ends_ladder_early(world, intel):
     result = intel.record(episode["episode_id"], "T+15", [], "insufficient-evidence",
                           "thin", "# r", [], [])
     assert result["next_check_at"] == "+15m"
+
+
+def test_signed_evidence_from_another_service_is_rejected(world, intel):
+    """Review finding F1: a validly SIGNED envelope for a different
+    service must not satisfy this episode's policy — signature proves
+    provenance, scope proves relevance."""
+    event = world.deploy("demo-errors")
+    episode = intel.create_episode(event)
+    intel.open_checkpoint(episode["episode_id"], "T+5", "ses_x")
+    healthy_envs = bundle_from_world(world, "demo-healthy", "T+5")
+    result = intel.record(episode["episode_id"], "T+5", healthy_envs,
+                          "healthy", "borrowed evidence", "# r", [], [])
+    assert "error" in result and "scope_mismatch" in result["error"]
+
+
+def test_double_complete_is_a_loud_conflict(world, intel):
+    """Review finding F2: the losing racer of a double record must not
+    report success or touch the episode."""
+    event = world.deploy("demo-healthy")
+    episode = intel.create_episode(event)
+    cp = intel.open_checkpoint(episode["episode_id"], "T+0", "ses_1")
+    first = intel.db.complete_checkpoint(cp["checkpoint_id"], "healthy", "pass",
+                                         "v1", False, "# r", "+5m")
+    assert first is not None and first["report_version"] == 1
+    second = intel.db.complete_checkpoint(cp["checkpoint_id"], "regression-suspected",
+                                          "fail", "v1", False, "# r2", None)
+    assert second is None
+    row = intel.db.one("SELECT stage_verdict, status FROM checkpoints c "
+                       "JOIN episodes e ON e.episode_id=c.episode_id "
+                       "WHERE c.checkpoint_id=?", (cp["checkpoint_id"],))
+    assert row["stage_verdict"] == "healthy"  # the winner's verdict stands
+
+
+def test_open_checkpoint_rearm_is_idempotent_while_open(world, intel):
+    """Review finding F9: a relay resume re-arms the same open checkpoint
+    with its new session instead of tripping UNIQUE(episode_id, stage)."""
+    event = world.deploy("demo-healthy")
+    episode = intel.create_episode(event)
+    cp1 = intel.open_checkpoint(episode["episode_id"], "T+0", "ses_dead")
+    cp2 = intel.open_checkpoint(episode["episode_id"], "T+0", "ses_alive")
+    assert cp1["checkpoint_id"] == cp2["checkpoint_id"]
+    assert cp2["session_id"] == "ses_alive"

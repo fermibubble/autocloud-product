@@ -26,13 +26,20 @@ MIN_SUPPORT = 3
 UNHEALTHY = ("regressed", "rolled_back")
 
 
-def _labeled_episode_ids(db: Db) -> set[str]:
+def _labeled_before(db: Db, recorded_at: str) -> set[str]:
+    """Episodes that were ALREADY labeled when a proposal was recorded.
+    Citing in-flight episodes that happen to get labeled later does not
+    count — support must come from ground truth that existed at proposal
+    time, so recurrence means re-proposing as evidence accumulates. Note
+    labels prove the cited episodes are ground-truthed; whether they
+    AGREE with the claim is the human promoter's judgment."""
     return {r["episode_id"] for r in
-            db.query("SELECT episode_id FROM episodes WHERE final_label IS NOT NULL")}
+            db.query("SELECT episode_id FROM episodes "
+                     "WHERE final_label IS NOT NULL AND labeled_at <= ?",
+                     (recorded_at,))}
 
 
 def suggest_promotions(db: Db) -> dict:
-    labeled = _labeled_episode_ids(db)
     proposals = db.query(
         "SELECT * FROM dossier_journal WHERE status='proposed' ORDER BY recorded_at")
 
@@ -44,6 +51,7 @@ def suggest_promotions(db: Db) -> dict:
             "rev_ids": [], "support": set(), "epistemic_types": set()})
         group["rev_ids"].append(p["rev_id"])
         group["epistemic_types"].add(p["epistemic_type"])
+        labeled = _labeled_before(db, p["recorded_at"])
         for src in json.loads(p["sources_json"] or "[]"):
             if isinstance(src, str) and src in labeled:
                 group["support"].add(src)

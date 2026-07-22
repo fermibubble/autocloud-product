@@ -132,13 +132,28 @@ class Intel:
                JOIN episodes e ON e.episode_id = c.episode_id
                JOIN services s ON s.service_uid = e.service_uid
                WHERE s.name=? AND c.stage=? AND c.completed_at IS NULL
-               ORDER BY c.created_at, c.checkpoint_id""",
+               ORDER BY c.created_at, c.episode_id""",
             (episode_or_service, stage))
-        if len(rows) == 1:
-            return rows[0]["episode_id"]
-        if len(rows) > 1 and all(r["episode_id"].startswith("fx_") for r in rows):
-            return rows[0]["episode_id"]
-        return None
+        # A live rollout always outranks armed fixtures: leftover eval
+        # checkpoints must never absorb (or block) a real episode's record.
+        live = [r for r in rows if not r["episode_id"].startswith("fx_")]
+        if live:
+            return live[0]["episode_id"] if len(live) == 1 else None
+        # Fixture-only: drain deterministically, oldest episode id first
+        # (created_at has 1s resolution; ids break the tie stably).
+        return rows[0]["episode_id"] if rows else None
+
+    def _min_full_coverage_offset(self) -> int:
+        """The earliest ladder offset by which EVERY policy rule has had at
+        least one stage to run — the floor below which no stabilization
+        window may end the ladder."""
+        offsets = {"T+0": 0, "T+5": 5, "T+15": 15, "T+30": 30}
+        floor = 0
+        for rule in self.pack.rules:
+            stages = rule.get("stages") or []
+            if stages:
+                floor = max(floor, min(offsets.get(s, 0) for s in stages))
+        return floor
 
     def resolve_service_uid(self, service: str) -> str | None:
         """Accepts a canonical svc:// uid or a bare service name."""
@@ -254,6 +269,23 @@ class Intel:
         # the common real-model path after calling run_stage_checks).
         if not envelopes:
             envelopes = self._stage_cache.get((episode_id, stage), [])
+
+        # Evidence transplant guard: a validly SIGNED envelope for a
+        # different service must not satisfy this episode's policy —
+        # signatures prove provenance, scope proves relevance. Rejected
+        # loudly rather than silently filtered, so the caller learns.
+        service_name = self.db.one(
+            "SELECT s.name FROM services s JOIN episodes e "
+            "ON e.service_uid = s.service_uid WHERE e.episode_id=?",
+            (episode_id,))["name"]
+        foreign = [e.get("observation_id") for e in envelopes
+                   if e.get("scope", {}).get("service")
+                   and e["scope"]["service"] != service_name]
+        if foreign:
+            return {"error": (f"scope_mismatch: observations {foreign} are for a "
+                              f"different service than this episode "
+                              f"({service_name}); submit evidence for the "
+                              "service under review")}
         verdict_result = evaluate(self.pack, stage, envelopes)
         for env in envelopes:
             ok, _ = envelope.verify(env)
@@ -279,19 +311,28 @@ class Intel:
         # Dynamic scheduling (research phase 5): a GOVERNED stabilization
         # window (approved/observed dossier claim only — governed_value
         # refuses asserted/hypothesized) ends the ladder once this stage's
-        # offset reaches it; otherwise the full T+0/5/15/30 ladder runs.
+        # offset reaches it — but never before every policy rule has had a
+        # stage to run at: a window of 5 must not skip the T+15-only
+        # fatal-log rule, and booleans/zero/negative values are not windows.
         stage_offset = {"T+0": 0, "T+5": 5, "T+15": 15, "T+30": 30}[stage]
         window = self.dossiers.governed_value(
             self.db.one("SELECT service_uid FROM episodes WHERE episode_id=?",
                         (episode_id,))["service_uid"],
             "stabilization_window_minutes")
         next_minutes = NEXT_CHECK_MINUTES.get(stage)
-        if isinstance(window, (int, float)) and stage_offset >= window:
-            next_minutes = None
+        if (isinstance(window, (int, float)) and not isinstance(window, bool)
+                and window > 0):
+            effective = max(window, self._min_full_coverage_offset())
+            if stage_offset >= effective:
+                next_minutes = None
         next_check_at = f"+{next_minutes}m" if next_minutes else None
         completed = self.db.complete_checkpoint(
             checkpoint["checkpoint_id"], stage_verdict, policy_status,
             verdict_result["policy_version"], False, report_md, next_check_at)
+        if completed is None:
+            return {"error": (f"conflict: checkpoint {checkpoint['checkpoint_id']} "
+                              "was recorded concurrently; this attempt changed "
+                              "nothing")}
         self.db.insert_decision(
             checkpoint["checkpoint_id"], "stage_verdict",
             {"stage_verdict": stage_verdict, "policy_status": policy_status,
@@ -540,7 +581,15 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                         and parts[3] == "outcome"):
                     # Idempotent per (episode, horizon) so a restarted
                     # collector re-observing a horizon updates rather than
-                    # duplicates.
+                    # duplicates. Unknown episodes 404 (a reset can orphan a
+                    # collector thread), and an existing label is never
+                    # overwritten — a human's label outranks the collector.
+                    episode = intel.db.one(
+                        "SELECT final_label FROM episodes WHERE episode_id=?",
+                        (parts[2],))
+                    if episode is None:
+                        self._send(404, {"error": f"unknown episode {parts[2]}"})
+                        return
                     intel.db.execute(
                         """INSERT OR REPLACE INTO outcomes(outcome_id,episode_id,horizon,
                            collected_at,slo_json,rollback_detected,rollback_at,
@@ -553,12 +602,14 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                          body.get("rollback_at"),
                          json.dumps(body.get("incident_refs", [])),
                          body.get("source", "webhook"), body.get("notes", "")))
-                    if body.get("final_label"):
+                    if body.get("final_label") and episode["final_label"] is None:
                         intel.db.execute(
                             """UPDATE episodes SET final_label=?, labeled_at=?, status='closed'
-                               WHERE episode_id=?""",
+                               WHERE episode_id=? AND final_label IS NULL""",
                             (body["final_label"], now_iso(), parts[2]))
-                    self._send(200, {"recorded": True})
+                    self._send(200, {"recorded": True,
+                                     "label_applied": bool(body.get("final_label"))
+                                     and episode["final_label"] is None})
                 elif parsed.path == "/intel/feedback":
                     intel.db.execute(
                         """INSERT INTO feedback(feedback_id,episode_id,type,actor,
@@ -597,11 +648,30 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                 elif parsed.path == "/intel/fixtures/load":
                     # Test-only: load a labeled episode corpus with FIXED
                     # ids (replay + experiment runs need stable references).
+                    # Reloading a fixture episode RESETS it: its old
+                    # checkpoints/observations/decisions go away so a
+                    # two-arm experiment can be re-armed and re-run.
                     loaded = {"services": 0, "episodes": 0, "checkpoints": 0}
                     for svc in body.get("services", []):
                         intel.db.upsert_service(svc)
                         loaded["services"] += 1
+                    known = {e["episode_id"] for e in body.get("episodes", [])}
+                    for cp in body.get("open_checkpoints", []):
+                        if cp["episode_id"] not in known:
+                            raise ValueError(f"checkpoint references unknown fixture "
+                                             f"episode {cp['episode_id']}")
+                        if cp["stage"] not in STAGE_LADDER:
+                            raise ValueError(f"unknown stage {cp['stage']!r}")
                     for ep in body.get("episodes", []):
+                        for table in ("decisions",):
+                            intel.db.execute(
+                                f"""DELETE FROM {table} WHERE checkpoint_id IN
+                                    (SELECT checkpoint_id FROM checkpoints WHERE episode_id=?)""",
+                                (ep["episode_id"],))
+                        intel.db.execute("DELETE FROM observations WHERE episode_id=?",
+                                         (ep["episode_id"],))
+                        intel.db.execute("DELETE FROM checkpoints WHERE episode_id=?",
+                                         (ep["episode_id"],))
                         intel.db.execute(
                             """INSERT OR REPLACE INTO episodes(episode_id,service_uid,
                                revision_from,revision_to,fingerprint_json,deploy_event_json,
