@@ -115,7 +115,9 @@ weighted 10x), `scripts/learning-golden.sh` (recurrence threshold,
 contradiction blocking, human promotion), `scripts/experiment-run.sh`
 (skill A/B through the harness one-change gate), and
 `scripts/run-suite.sh <agent>` (per-agent suites from
-`agents/*/evals/suite.yaml`).
+`agents/*/evals/suite.yaml`; a suite may bind several rubrics — sessions
+execute once, every rubric grades them, each against its own threshold;
+judge-scored rubrics need an eval worker with ANTHROPIC_API_KEY).
 
 ## Activation (requires your GCP project)
 
