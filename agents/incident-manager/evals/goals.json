@@ -1,0 +1,9 @@
+{
+  "name": "incident-manager-goals",
+  "kind": "regression",
+  "cases": [
+    {
+      "input": "Incident drill: error rate on demo-service has tripled in the last 30 minutes. Investigate with parallel hypotheses, quantify blast radius, deliver the postmortem and comms drafts."
+    }
+  ]
+}

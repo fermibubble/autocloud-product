@@ -5,11 +5,11 @@
   "x-ensemble": {
     "capabilities": ["observability"],
     "toolScopes": {
-      "query_metrics": ["metrics:read"],
+      "query_metric": ["metrics:read"],
       "search_logs": ["logs:read"],
       "get_recommendations": ["metrics:read"],
       "list_services": ["inventory:read"],
-      "get_asset_inventory": ["inventory:read"]
+      "list_assets": ["inventory:read"]
     },
     "priority": 90
   }

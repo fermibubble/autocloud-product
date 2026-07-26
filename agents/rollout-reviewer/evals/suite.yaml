@@ -1,0 +1,21 @@
+# Eval suites for rollout-reviewer — read by scripts/run-suite.sh.
+# Product convention, NOT a harness kind; YAML on purpose so the bundle's
+# datasets glob (agents/*/evals/*.json) never publishes it.
+agent: rollout-reviewer
+suites:
+  # Deterministic golden: the scripted twin (fake model) against the sim.
+  # Threshold 1.0 — golden must be perfect, matching golden-script semantics.
+  - name: golden
+    agent: rollout-reviewer-scripted
+    dataset: rollout-golden
+    rubric: rollout-review@2
+    passThreshold: 1.0
+    setup:
+      # Eval sessions have no relay: arm rollout-intel with open fixture
+      # checkpoints (same pre-step as scripts/experiment-run.sh).
+      - 'curl -s -X POST "${INTEL_API:-http://127.0.0.1:7611}/intel/fixtures/load" --data-binary "@../../intel/fixtures/eval-checkpoints.json" > /dev/null'
+  # Live-model regression goal (needs a worker with ANTHROPIC_API_KEY).
+  - name: goals
+    dataset: rollout-reviewer-goals
+    rubric: rollout-review@2
+    passThreshold: 0.7

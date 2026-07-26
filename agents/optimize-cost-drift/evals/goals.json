@@ -1,0 +1,9 @@
+{
+  "name": "optimize-cost-drift-goals",
+  "kind": "regression",
+  "cases": [
+    {
+      "input": "Run a FinOps sweep of this project: idle and over-provisioned resources, anomaly correlation, savings ranked with draft remediations."
+    }
+  ]
+}

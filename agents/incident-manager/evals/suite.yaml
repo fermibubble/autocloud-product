@@ -1,0 +1,18 @@
+# Eval suites for incident-manager — read by scripts/run-suite.sh.
+# Product convention, NOT a harness kind; YAML on purpose so the bundle's
+# datasets glob (agents/*/evals/*.json) never publishes it.
+agent: incident-manager
+suites:
+  # Live-model incident drill (needs a worker with ANTHROPIC_API_KEY).
+  - name: goals
+    dataset: incident-manager-goals
+    rubric: incident-review@1
+    passThreshold: 0.7
+  # incident-manager-hitl is intentionally NOT a default suite: its
+  # unlistedMcpTools: ask gates every cloud call on human approval, which
+  # stalls unattended eval runs. Uncomment to run attended:
+  # - name: goals-hitl
+  #   agent: incident-manager-hitl
+  #   dataset: incident-manager-goals
+  #   rubric: incident-review@1
+  #   passThreshold: 0.7

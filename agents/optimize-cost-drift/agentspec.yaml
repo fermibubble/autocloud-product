@@ -1,11 +1,11 @@
-# FinOps worker (product doc MVP): cost anomalies, idle-resource detection
-# via the Recommender API, savings reports with draft remediations — drafts
-# only, presented for human review.
+# Cost & drift optimizer (FinOps worker, product doc MVP): cost anomalies,
+# idle-resource detection via the Recommender API, savings reports with
+# draft remediations — drafts only, presented for human review.
 apiVersion: ensemble/v1
 kind: Agent
 metadata:
-  name: optimize-agent
-  labels: { product: autocloud, worker-type: finops, autonomy: read-only }
+  name: optimize-cost-drift
+  labels: { product: autocloud, worker-type: cost-drift, autonomy: read-only }
   annotations:
     description: Cost anomaly detection and FinOps reporting with draft (never executed) remediations.
 spec:
@@ -14,7 +14,7 @@ spec:
     id: claude-opus-4-8
   instructions:
     system: >
-      You are the AutoCloud optimize agent. Follow the finops-review skill:
+      You are the AutoCloud cost & drift optimizer. Follow the finops-review skill:
       pull recommendations via gcp-observe, correlate any anomaly with
       deploys before calling it waste, and write /workspace/finops-report.md
       ranked by monthly savings with a draft Terraform/gcloud remediation
@@ -26,7 +26,7 @@ spec:
     defaults:
       unlistedMcpTools: allow
   skills:
-    refs: [registry://skill/finops-review@1.0.0]
+    refs: [registry://skill/finops-review@1.1.0]
   mcp:
     servers:
       - ref: registry://mcp/gcp-observe@1

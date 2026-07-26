@@ -14,7 +14,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 : "${ENSEMBLE_TOKEN:?ENSEMBLE_TOKEN required}"
 API="${ENSEMBLE_API:-http://localhost:8088}"
-SPECS_DIR="../specs"
+SPECS_DIR="../agents/rollout-reviewer"
 
 echo "== Step 1: verify prefer=[gcp-observe] is the current binding"
 # The specs were just applied with prefer: [gcp-observe].
@@ -33,12 +33,12 @@ print("  STEP 1 OK: prefer is gcp-observe")'
 
 echo "== Step 2: flip prefer to [gcp-observe-b]"
 # Patch both specs: replace prefer: [gcp-observe] with prefer: [gcp-observe-b]
-for spec in rollout-reviewer.yaml rollout-reviewer-scripted.yaml; do
+for spec in agentspec.yaml agentspec.scripted.yaml; do
     sed -i.bak 's/prefer: \[gcp-observe\]/prefer: [gcp-observe-b]/' "$SPECS_DIR/$spec"
 done
 
 # Apply the one-line change
-go run -C /Users/cmeesala/workspace/ensemble/cli . apply /Users/cmeesala/workspace/autocloud-product 2>&1 \
+go run -C ../../ensemble/cli . apply .. 2>&1 \
   | grep -E "spec|capability|mcp|skill" | while read -r line; do echo "  $line"; done
 
 echo "== Step 3: verify gcp-observe-b is now bound"
@@ -58,10 +58,10 @@ print("  tool names: mcp__observe__* (unchanged — the alias did not move)")
 print("  STEP 3 OK: provider swapped, everything else untouched")'
 
 echo "== Step 4: restore prefer to [gcp-observe] for other tests"
-for spec in rollout-reviewer.yaml rollout-reviewer-scripted.yaml; do
+for spec in agentspec.yaml agentspec.scripted.yaml; do
     sed -i.bak 's/prefer: \[gcp-observe-b\]/prefer: [gcp-observe]/' "$SPECS_DIR/$spec"
     rm -f "$SPECS_DIR/$spec.bak"
 done
-go run -C /Users/cmeesala/workspace/ensemble/cli . apply /Users/cmeesala/workspace/autocloud-product 2>&1 | grep "spec" | while read -r line; do echo "  $line"; done
+go run -C ../../ensemble/cli . apply .. 2>&1 | grep "spec" | while read -r line; do echo "  $line"; done
 
 echo "CAPABILITY SWAP DEMO GREEN"

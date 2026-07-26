@@ -1,13 +1,13 @@
-# Design & Governance worker: reviews designs and IaC against the
-# governance skill corpus — best practices ARE versioned skills, so policy
-# updates are skill publishes, not prompt edits. Report vocabulary (risks,
-# evidence, assumptions, open questions) follows the org's control-plane
-# proto definitions.
+# Best-practices reviewer (design & governance worker): reviews designs and
+# IaC against the governance skill corpus — best practices ARE versioned
+# skills, so policy updates are skill publishes, not prompt edits. Report
+# vocabulary (risks, evidence, assumptions, open questions) follows the
+# org's control-plane proto definitions.
 apiVersion: ensemble/v1
 kind: Agent
 metadata:
-  name: design-governance
-  labels: { product: autocloud, worker-type: design-governance, autonomy: read-only }
+  name: best-practices-reviewer
+  labels: { product: autocloud, worker-type: best-practices, autonomy: read-only }
   annotations:
     description: Architecture and IaC review against the governance corpus; approval-ready reports.
 spec:
@@ -16,7 +16,7 @@ spec:
     id: claude-opus-4-8
   instructions:
     system: >
-      You are the AutoCloud design & governance reviewer. Review the design,
+      You are the AutoCloud best-practices reviewer. Review the design,
       Terraform, or architecture described in your goal (and any files
       provided in your workspace) against the architecture-review-standards
       skill. Inspect the live project via gcp-observe where claims can be
@@ -32,7 +32,9 @@ spec:
     defaults:
       unlistedMcpTools: allow
   skills:
-    refs: [registry://skill/architecture-review-standards@1.0.0]
+    refs:
+      - registry://skill/architecture-review-standards@1.0.0
+      - registry://skill/best-practices-assessor@1.0.0
   mcp:
     servers:
       - ref: registry://mcp/gcp-observe@1

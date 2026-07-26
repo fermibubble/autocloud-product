@@ -4,12 +4,12 @@ metadata:
   name: autocloud-product
   tenant: autocloud-product      # informational — actual scoping comes from ENSEMBLE_TOKEN
   project: default
-specs: ["specs/*.yaml"]
+specs: ["agents/*/agentspec*.yaml"]
 skills: ["skills/*"]
 capabilities: ["capabilities/*.yaml"]
 mcp: ["mcp/*.server.json"]
 rubrics: ["rubrics/*.md"]
-datasets: ["datasets/*.json"]
+datasets: ["agents/*/evals/*.json"]
 secrets: []
 #  - name: example-api-key
 #    domain: api.example.com

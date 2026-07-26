@@ -1,7 +1,7 @@
 ---
 name: incident-playbook
-version: 1.0.0
-description: Parallel-hypothesis incident investigation - fan out competing hypotheses, assess blast radius, drive to a root cause, and produce the postmortem + comms structure.
+version: 1.1.0
+description: Parallel-hypothesis incident investigation - fan out competing hypotheses, assess blast radius, drive to a root cause, and produce the postmortem + comms structure - with on-demand playbooks for parallel investigation orchestration, platform-outage correlation, and executive reporting.
 ---
 # Incident playbook
 
@@ -18,3 +18,27 @@ description: Parallel-hypothesis incident investigation - fan out competing hypo
 5. Deliverables: /workspace/incident-report.md (timeline, blast radius,
    root cause, evidence) and /workspace/comms.md (stakeholder notification
    drafts: impacted teams, status, next update time).
+
+## The confidence gate
+
+State a root cause ONLY with high confidence and sufficient evidence.
+Without it, say so plainly: recap what was investigated, present every
+finding and surviving hypothesis, and name exactly what evidence would
+settle it. A guessed root cause is worse than an honest open question -
+it sends responders the wrong way.
+
+## Investigation playbooks (read on demand)
+
+Detailed playbooks ship in this package at
+/skills/incident-playbook/references/. Read the ones that apply; skip
+the rest:
+
+- Spawning parallel investigators (rule 1) ->
+  references/parallel-investigation.md (stage discipline, non-overlapping
+  domain plans, spawn briefings, synthesis).
+- The "external" hypothesis, or an alert that may duplicate a known
+  platform event -> references/outage-correlation.md (impact verdict
+  discipline, correlation windows, dedup).
+- Leadership-facing summary warranted (major blast radius or exec
+  audience) -> references/exec-report-card.md (optional third
+  deliverable: /workspace/exec-report-card.md).

@@ -1,0 +1,9 @@
+{
+  "name": "best-practices-reviewer-goals",
+  "kind": "regression",
+  "cases": [
+    {
+      "input": "Review this design: a single-region Cloud Run service with a public unauthenticated endpoint writing directly to a shared Postgres. Produce the standard governance review."
+    }
+  ]
+}

@@ -8,7 +8,8 @@
 #
 # Requires up: harness services, gcp_sim (7620/7621), gcp-observe sim mode
 # (7600/7601), rollout-intel (7610/7611), relay (SIM_TIME_SCALE<=0.02),
-# runtime worker with autocloud fake-scripts on FAKE_SCRIPTS_DIR, and an
+# runtime worker with agents/rollout-reviewer/fake-scripts on
+# FAKE_SCRIPTS_DIR, and an
 # autocloud-tenant ENSEMBLE_TOKEN exported.
 set -euo pipefail
 WORLD="${WORLD_API:-http://127.0.0.1:7621}"

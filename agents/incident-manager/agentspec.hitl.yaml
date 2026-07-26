@@ -32,7 +32,7 @@ spec:
     defaults:
       unlistedMcpTools: ask
   skills:
-    refs: [registry://skill/incident-playbook@1.0.0]
+    refs: [registry://skill/incident-playbook@1.1.0]
   mcp:
     servers:
       - ref: registry://mcp/gcp-observe@1

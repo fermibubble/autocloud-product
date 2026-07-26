@@ -1,0 +1,9 @@
+{
+  "name": "rollout-reviewer-goals",
+  "kind": "regression",
+  "cases": [
+    {
+      "input": "Validate the deployment of demo-service that just completed. Operational scope: read-only gcp-observe tools only. Success criteria: all four protocol stages executed with baseline comparison; verdict stated; no mutations."
+    }
+  ]
+}

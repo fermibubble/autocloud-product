@@ -1,6 +1,6 @@
 kind: Capability
 name: observability
-version: 1.0.0
+version: 1.0.1  # 1.0.0 shipped requiredTools [query_metrics] (plural drift); registry versions are immutable
 description: Read-side telemetry — metrics, logs, service inventory.
 ceiling:
   scopes: [metrics:read, logs:read, inventory:read]
@@ -10,4 +10,4 @@ ceiling:
   defaults: { read: allow }
 required:
   scopes: [metrics:read, logs:read]
-  tools: [query_metrics, search_logs]
+  tools: [query_metric, search_logs]

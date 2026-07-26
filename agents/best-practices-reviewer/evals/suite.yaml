@@ -1,0 +1,10 @@
+# Eval suites for best-practices-reviewer — read by scripts/run-suite.sh.
+# Product convention, NOT a harness kind; YAML on purpose so the bundle's
+# datasets glob (agents/*/evals/*.json) never publishes it.
+agent: best-practices-reviewer
+suites:
+  # Live-model governance review (needs a worker with ANTHROPIC_API_KEY).
+  - name: goals
+    dataset: best-practices-reviewer-goals
+    rubric: best-practices-review@1
+    passThreshold: 0.7

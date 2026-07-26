@@ -17,14 +17,63 @@ autonomy, human-in-the-loop as a spec-level dial.
   spawns; blast radius; postmortem + comms drafts. (`incident-manager-hitl`:
   identical worker, every cloud call human-approved — the autonomy dial as a
   one-section spec diff.)
-- `optimize-agent` — FinOps sweeps via the Recommender API; savings-ranked
-  findings with draft (never executed) remediations.
-- `design-governance` — design/IaC review against the governance skill
-  corpus; risks/evidence/assumptions/open-questions verdicts.
+- `optimize-cost-drift` — FinOps sweeps via the Recommender API;
+  savings-ranked findings with draft (never executed) remediations.
+- `best-practices-reviewer` — design/IaC review against the governance
+  skill corpus; risks/evidence/assumptions/open-questions verdicts.
 
 Read-only is structural: `mcp-servers/gcp/` exposes no mutating verbs, and
 credentials (ADC) live with that server process — never in sandboxes,
 prompts, or logs.
+
+## Layout
+
+Each worker owns a folder under `agents/`:
+
+    agents/<name>/
+      agentspec.yaml            # the AgentSpec (variants: agentspec.scripted.yaml, agentspec.hitl.yaml)
+      evals/                    # datasets (*.json — published by the bundle glob)
+      evals/suite.yaml          # suite manifest for scripts/run-suite.sh (YAML on purpose: never published)
+      fake-scripts/             # deterministic FakeProvider scripts, where the agent has a scripted twin
+      README.md
+
+Shared, product-level: `skills/` and `rubrics/` (referenced from specs and
+suites by registry name), plus `capabilities/`, `mcp/`, `policies/`,
+`catalog/`. Discovery is glob-driven from `ensemble.bundle.yaml` — registry
+identity comes from each artifact's `name`, never its path. Runtime workers
+find fake scripts via `FAKE_SCRIPTS_DIR` (os.pathsep-joined roots, e.g.
+`agents/rollout-reviewer/fake-scripts`). Note: `ensemble apply` never
+deletes, so the pre-rename agents (`optimize-agent`, `design-governance`)
+and the old `autocloud-goals` dataset remain frozen in the registry.
+
+## The skill corpus
+
+Six curated skills, all following the same package convention: a tight
+contract body (`SKILL.md`) plus on-demand playbooks under `references/`
+that materialize at `/skills/<name>/references/` — the agent reads only
+what the situation calls for (progressive disclosure). Authoring rules
+live in `docs/SKILL_CONTRIBUTION_GUIDE.md`.
+
+| Skill | For | Playbooks |
+|---|---|---|
+| `rollout-validation-protocol` @3.2.0 | rollout-reviewer | noise-isolation, scope-triage, evidence-gathering, stability-checks |
+| `dossier-maintenance` @1.0.0 | rollout-reviewer | — |
+| `incident-playbook` @1.1.0 | incident-manager | parallel-investigation, outage-correlation, exec-report-card |
+| `finops-review` @1.1.0 | optimize-cost-drift | gce-modernization, stuck-savings |
+| `architecture-review-standards` @1.0.0 | best-practices-reviewer | — (owns the review output contract) |
+| `best-practices-assessor` @1.0.0 | best-practices-reviewer | 37-file archetype × product corpus + terraform-review |
+
+The playbooks were harvested from a legacy skill corpus written for a
+different agent platform — its domain judgment (noise vs regression
+heuristics, investigation orchestration, modernization discipline, the
+best-practices corpus) rewritten against this product's tool surface and
+verdict contracts; its platform mechanics (discretionary verdicts,
+self-collected CLI evidence, agent-owned state) deliberately discarded.
+The full audit and adopt/discard record: `docs/SKILLS_AUDIT_REPORT.md`.
+Unharvested raw material (58 generated diagnostic decision-trees, 14
+product grounding files) is archived at
+`../skills-legacy-archive-20260726.tar.gz` for the future
+diagnostics-translation work.
 
 ## The Rollout Intelligence Layer (`intel/`)
 
@@ -64,7 +113,9 @@ isolation → as_of time travel → live session reading the `/memory`
 mount), `scripts/replay-run.sh` (time-correct replay, false-safe
 weighted 10x), `scripts/learning-golden.sh` (recurrence threshold,
 contradiction blocking, human promotion), `scripts/experiment-run.sh`
-(skill A/B through the harness one-change gate).
+(skill A/B through the harness one-change gate), and
+`scripts/run-suite.sh <agent>` (per-agent suites from
+`agents/*/evals/suite.yaml`).
 
 ## Activation (requires your GCP project)
 
@@ -74,7 +125,8 @@ contradiction blocking, human promotion), `scripts/experiment-run.sh`
     3. GCP_PROJECT=<your-project> uv run --project mcp-servers/gcp python mcp-servers/gcp/server.py
     4. scripts/bootstrap.sh                    # autocloud token + ensemble apply
     5. deploy demo-service/ (gcloud run deploy demo-service --source demo-service/)
-       then run the first goal from datasets/goals.json against rollout-reviewer
+       then run the goal from agents/rollout-reviewer/evals/goals.json
+       against rollout-reviewer
 
 Agents run a real Claude model; the runtime worker needs ANTHROPIC_API_KEY.
 Until both credentials exist, everything publishes and validates (bundle

@@ -1,0 +1,10 @@
+# Eval suites for optimize-cost-drift — read by scripts/run-suite.sh.
+# Product convention, NOT a harness kind; YAML on purpose so the bundle's
+# datasets glob (agents/*/evals/*.json) never publishes it.
+agent: optimize-cost-drift
+suites:
+  # Live-model FinOps sweep (needs a worker with ANTHROPIC_API_KEY).
+  - name: goals
+    dataset: optimize-cost-drift-goals
+    rubric: cost-drift-review@1
+    passThreshold: 0.7
