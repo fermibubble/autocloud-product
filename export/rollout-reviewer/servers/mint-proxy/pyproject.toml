@@ -1,0 +1,6 @@
+[project]
+name = "rollout-mint-proxy"
+version = "0.1.0"
+description = "Minting MCP proxy: signed observation envelopes over any upstream MCP server (BYO observability, pattern 1)"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.2,<2", "starlette>=0.37", "uvicorn>=0.30"]

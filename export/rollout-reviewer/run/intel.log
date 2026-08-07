@@ -1,0 +1,53 @@
+INFO:rollout_intel.db:episode store ready at sqlite:////Users/cmeesala/workspace/harness/autocloud-product/export/rollout-reviewer/run/episode-store.db
+INFO:     Started server process [67696]
+INFO:     Waiting for application startup.
+INFO:mcp.server.streamable_http_manager:StreamableHTTP session manager started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:7610 (Press CTRL+C to quit)
+INFO:mcp.server.streamable_http_manager:Created new transport with session ID: 14f8bbcd50d2432c8a0a05728def7aaa
+rollout-intel: mcp=:7610 rest=:7611 policy=rollout-slo@1
+INFO:     127.0.0.1:53743 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:53745 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53746 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type CallToolRequest
+INFO:     127.0.0.1:53747 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:mcp.server.streamable_http:Terminating session: 14f8bbcd50d2432c8a0a05728def7aaa
+INFO:     127.0.0.1:53748 - "DELETE /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.streamable_http_manager:Created new transport with session ID: 6a75f64b869845328a3990fee8bdac56
+INFO:     127.0.0.1:53749 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53750 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:53751 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53752 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type CallToolRequest
+INFO:httpx:HTTP Request: GET http://127.0.0.1:7601/observe/bundle?service=demo-errors&stage=T%2B30 "HTTP/1.0 200 OK"
+INFO:     127.0.0.1:53761 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:mcp.server.streamable_http:Terminating session: 6a75f64b869845328a3990fee8bdac56
+INFO:     127.0.0.1:53762 - "DELETE /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.streamable_http_manager:Created new transport with session ID: 46da6f9f33744757b8c2f6775700478c
+INFO:     127.0.0.1:53781 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53783 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53782 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:53784 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type CallToolRequest
+INFO:     127.0.0.1:53785 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:mcp.server.streamable_http:Terminating session: 46da6f9f33744757b8c2f6775700478c
+INFO:     127.0.0.1:53786 - "DELETE /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.streamable_http_manager:Created new transport with session ID: 4684d69c8f8940b0b26e3f84073f8bdd
+INFO:     127.0.0.1:53791 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53792 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:53793 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53794 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type CallToolRequest
+INFO:     127.0.0.1:53795 - "POST /mcp HTTP/1.1" 200 OK
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:mcp.server.streamable_http:Terminating session: 4684d69c8f8940b0b26e3f84073f8bdd
+INFO:     127.0.0.1:53796 - "DELETE /mcp HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:mcp.server.streamable_http_manager:StreamableHTTP session manager shutting down
+INFO:     Application shutdown complete.
+INFO:     Finished server process [67696]

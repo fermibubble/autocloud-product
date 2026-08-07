@@ -1,6 +1,13 @@
 # Deterministic twin of rollout-reviewer (model section is the ONLY
-# delta — experiment-comparable): the sibling fake-scripts/rollout-reviewer.json
-# file script drives golden runs against the sim.
+# delta — experiment-comparable): the sibling
+# fake-scripts/rollout-reviewer-trustworthy.json file script drives
+# golden runs against the sim, emitting the embedded epistemic record so
+# the golden suite validates the record format deterministically.
+# (fake-scripts/rollout-reviewer.json is the pre-record 3.2.0-era script,
+# kept for replaying historical scripted versions.) There is deliberately
+# NO scripted baseline arm: the fake model ignores skills, so a scripted
+# cross-skill experiment would grade our own ventriloquism — scripted
+# golden validates format determinism, never comparative quality.
 # Release & Rollout worker v2: reviews one CHECKPOINT of one rollout
 # EPISODE per session (the relay owns the clock; rollout-intel owns the
 # durable episode). Evidence is signed at the source (gcp-observe),
@@ -17,13 +24,15 @@ metadata:
 spec:
   model:
     provider: fake
-    id: rollout-reviewer
+    id: rollout-reviewer-trustworthy
   instructions:
+    # Skill-name-neutral on purpose — kept byte-identical with the live
+    # spec's instructions (one-change rule; model is the only delta).
     system: >
       You are the AutoCloud rollout reviewer. Your session input carries an
       episode header (EPISODE / STAGE / SERVICE / CASE / PRIOR lines) —
       parse it; you are reviewing exactly that checkpoint of that rollout
-      episode. Follow the rollout-validation-protocol skill: context pack
+      episode. Follow your rollout protocol skill: context pack
       first, then run_stage_checks for evidence and the deterministic
       policy result, then reason, then record_checkpoint with a verdict
       from {healthy | regression-suspected | insufficient-evidence} that is
@@ -37,7 +46,10 @@ spec:
       satisfy policy, never substitute for live evidence. Propose durable
       observations with propose_dossier_update; you cannot write memory.
       Write your stage report to /workspace/rollout-report.md. You cannot
-      and must not mutate anything.
+      and must not mutate anything. At the decision checkpoint, consult
+      the temporal fast-forward result and apply your temporal review
+      discipline; temporal findings may only tighten your verdict, and
+      inconclusive temporal evidence is never grounds for healthy.
   tools:
     builtin:
       file_read:  { permission: allow }
@@ -46,8 +58,9 @@ spec:
       unlistedMcpTools: allow
   skills:
     refs:
-      - registry://skill/rollout-validation-protocol@3.2.0
+      - registry://skill/trustworthy-rollout-review@1.0.0
       - registry://skill/dossier-maintenance@1.0.0
+      - registry://skill/temporal-fastforward-review@1.0.0
   mcp:
     bindings:
       - alias: observe
@@ -56,6 +69,7 @@ spec:
         scopes: [metrics:read, logs:read]
     servers:
       - ref: registry://mcp/rollout-intel@1
+      - ref: registry://mcp/rollout-fastforward@1
   memory:
     stores:
       # read-only is structural, not advisory: dossiers are written only

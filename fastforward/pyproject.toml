@@ -1,0 +1,12 @@
+[project]
+name = "rollout-fastforward"
+version = "0.1.0"
+description = "Rollout Fast-Forward: compresses a candidate's future into the decision window via hazard compilation, accelerated probes, and signed temporal evidence"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.2,<2", "pyyaml>=6.0", "httpx>=0.27"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

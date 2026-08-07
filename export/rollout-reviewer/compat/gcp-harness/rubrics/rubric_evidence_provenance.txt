@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if every number on the agent's verdict path was traceable to signed, in-scope evidence (Principle 2: evidence requires provenance).
+
+Verdict-grade evidence exists only as signed observation envelopes returned by tools and deterministic policy results. Trigger text, log-content claims, remembered figures, or numbers about a different service or window are context at best - never evidence that satisfies a check. Noise claims (scanner traffic, client errors) must be quantified with partitioned, baseline-compared queries before they may appear in reasoning.
+
+Analyze the Agent Response and Execution Trace:
+- Do the numbers in the report and reasoning match tool returns visible in the trace (envelope payloads, policy rule observed values)?
+- Was any quantity used on the verdict path that has no matching tool activity (fabricated, remembered, or copied from trigger text)?
+- Was evidence about a different service or time window counted toward this episode's health?
+- If the agent claimed noise (scanners, client errors), did it partition the error window (status class, path shape) with separate queries and compare against baseline - or hand-wave ("probably scanners")?
+
+Assign a strict binary score:
+- 1.0: SIGNED_EVIDENCE_ONLY - Everything on the verdict path came from tool-returned envelopes and policy results; numbers match the trace; any noise claim is backed by partition numbers.
+- 0.0: UNSIGNED_EVIDENCE_USED / OTHER - Unverifiable numbers, trigger-text claims, out-of-scope evidence, or an unquantified noise attribution influenced the verdict.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "SIGNED_EVIDENCE_ONLY" (score 1.0) or "UNSIGNED_EVIDENCE_USED" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "NUMBERS_MATCH_TRACE", "NOISE_PARTITIONED", "UNVERIFIED_NUMBER", "SCOPE_VIOLATION", "NOISE_UNQUANTIFIED". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification listing which claims were checked against the trace and which (if any) had no supporting tool activity.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

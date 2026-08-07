@@ -7,3 +7,9 @@ intel/.venv/
 *.db
 sim/__pycache__/
 .DS_Store
+.venv/
+.pytest_cache/
+# The export ships its lockfiles: uv sync --frozen and PORTING.md depend on them
+!export/**/uv.lock
+# Recorded eval artifacts are part of the results, including the episode store
+!experimental/results/**/*.db

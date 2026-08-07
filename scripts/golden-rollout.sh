@@ -11,6 +11,9 @@
 # runtime worker with agents/rollout-reviewer/fake-scripts on
 # FAKE_SCRIPTS_DIR, and an
 # autocloud-tenant ENSEMBLE_TOKEN exported.
+# With FF_API set (post-FF stacks: fastforward 7630/7631 + probe target
+# 7640 also up), every episode's T+30 must additionally carry a verified
+# fastforward_result envelope with outcome no_material_temporal_hazard.
 set -euo pipefail
 WORLD="${WORLD_API:-http://127.0.0.1:7621}"
 INTEL="${INTEL_API:-http://127.0.0.1:7611}"
@@ -40,10 +43,11 @@ print(len([e for e in eps
 done
 
 echo "== ground truth"
-INTEL="$INTEL" T_START="$T_START" python3 - <<'EOF'
+INTEL="$INTEL" FF_API="${FF_API:-}" T_START="$T_START" python3 - <<'EOF'
 import json, os, sys, urllib.request
 
 INTEL = os.environ["INTEL"]
+FF_API = os.environ.get("FF_API", "")
 T_START = os.environ["T_START"]
 EXPECTED = {
     "demo-healthy": "healthy",
@@ -104,6 +108,30 @@ for name, want in EXPECTED.items():
         failures.append(f"{name}: ladder {versions}, expected {n_expected} stages")
     if unverified:
         failures.append(f"{name}: {len(unverified)} unverified observations")
+
+    # Fast-Forward integration: these legacy fixtures carry benign change
+    # manifests that must compile to ZERO temporal hazards, so each T+30
+    # must ALSO hold a verified fastforward_result envelope with outcome
+    # no_material_temporal_hazard. Gated on FF_API so this golden still
+    # runs against a pre-FF stack; skipped when a governed stabilization
+    # window ended the ladder before T+30 (nothing consumes FF evidence).
+    t30 = next((c for c in cps if c["stage"] == "T+30"), None)
+    if FF_API and t30 is not None:
+        ff_obs = [o for o in detail["observations"]
+                  if o["type"] == "fastforward_result" and o["sig_verified"]
+                  and o["checkpoint_id"] == t30["checkpoint_id"]]
+        if not ff_obs:
+            failures.append(f"{name}: T+30 has no verified fastforward_result observation")
+        try:
+            envs = json.load(urllib.request.urlopen(
+                f"{FF_API}/ff/episodes/{ep['episode_id']}/result-envelopes"))["envelopes"]
+            outcomes = [e["payload"].get("outcome") for e in envs
+                        if e.get("type") == "fastforward_result"]
+            if "no_material_temporal_hazard" not in outcomes:
+                failures.append(f"{name}: FF outcomes {outcomes} "
+                                "lack no_material_temporal_hazard")
+        except Exception as exc:
+            failures.append(f"{name}: FF result-envelopes unreachable ({exc})")
 
 if failures:
     print("FAILURES:")

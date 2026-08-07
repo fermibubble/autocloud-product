@@ -2,7 +2,7 @@
 # Rules are evaluated by rollout-intel over VERIFIED observation envelopes
 # only; the LLM interprets, this decides. Editing thresholds = new version.
 name: rollout-slo
-version: 1
+version: 2
 defaults:
   window_minutes: 10
 rules:
@@ -40,3 +40,14 @@ rules:
     description: No NEW fatal/critical stack patterns absent from baseline.
     pattern: "FATAL"
     stages: ["T+15", "T+30"]
+
+  - id: temporal-evidence
+    type: fastforward_result
+    description: >
+      A confirmed temporal counterexample fails the rollout;
+      inconclusive-budget or unsupported temporal evidence is
+      insufficient_evidence, never pass; absence of temporal evidence at
+      the decision stage is insufficient_evidence.
+    fail_outcomes: [temporal_counterexample]
+    insufficient_outcomes: [inconclusive_budget, unsupported_temporal_risk]
+    stages: ["T+30"]

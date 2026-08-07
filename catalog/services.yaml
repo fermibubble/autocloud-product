@@ -33,3 +33,27 @@ services:
     runtime: cloud-run
     architecture_version: v1
     owner: platform-sre
+
+  - tenant: autocloud
+    name: demo-leak
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: platform-sre
+
+  - tenant: autocloud
+    name: demo-retry
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: platform-sre
+
+  - tenant: autocloud
+    name: demo-cred
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: payments-sre

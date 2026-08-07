@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "epistemic-record.schema.json",
+  "title": "Epistemic Record (P1 - composition root)",
+  "description": "The machine-parseable epistemic record embedded in every rollout checkpoint report (between <!-- epistemic-record:begin --> and <!-- epistemic-record:end --> markers). This file IS the P1 spec - verdicts never travel as bare labels - and composes the sibling schemas by $ref: evidence refs (P2), the proposed_action draft (P4), quoted_evidence quarantine entries (P5), and the validity horizon (P6). Each referenced schema is independently loadable for harnesses adopting principles incrementally. Id namespaces: o-N are record-local observation ids; evidence_refs cite platform ids.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "observations",
+    "inferences",
+    "confidence",
+    "unknowns",
+    "discriminating_checks",
+    "valid_through",
+    "reassess_if"
+  ],
+  "properties": {
+    "verdict": {
+      "description": "Frozen vocabulary - must equal the stage_verdict passed to record_checkpoint.",
+      "enum": ["healthy", "regression-suspected", "insufficient-evidence"]
+    },
+    "observations": {
+      "description": "Directly retrieved facts with no causal language. Every observation cites the evidence that backs it (P2).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement", "evidence_refs"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^o-[0-9]+$" },
+          "statement": { "type": "string", "minLength": 10 },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "evidence-ref.schema.json" }
+          }
+        }
+      }
+    },
+    "inferences": {
+      "description": "Derived claims. May be empty (abstention may infer nothing), but the key must be present. An inference citing no observation is an opinion and is schema-invalid.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["statement", "supported_by", "alternatives"],
+        "properties": {
+          "statement": { "type": "string", "minLength": 10 },
+          "supported_by": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^o-[0-9]+$" }
+          },
+          "alternatives": {
+            "description": "Competing explanations still open. An empty array is an explicit claim: alternatives were considered and none remain.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 5 }
+          }
+        }
+      }
+    },
+    "confidence": {
+      "description": "Qualitative only - the schema structurally forbids numeric confidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "basis"],
+      "properties": {
+        "level": { "enum": ["low", "medium", "high"] },
+        "basis": { "type": "string", "minLength": 20 }
+      }
+    },
+    "unknowns": {
+      "description": "Missing information that materially limits the conclusion. Literal [\"none\"] is the explicit-empty form; silence is not.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 4 }
+    },
+    "discriminating_checks": {
+      "description": "The next queries most likely to confirm OR overturn the verdict. At least one unless abstaining (see if/then below); when abstaining, name what would make the next checkpoint decidable.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 10 }
+    },
+    "valid_through": { "$ref": "validity-horizon.schema.json#/$defs/valid_through" },
+    "reassess_if": { "$ref": "validity-horizon.schema.json#/$defs/reassess_if" },
+    "quoted_evidence": {
+      "description": "Trust-boundary quarantine entries (P5). Present whenever evidence contains instruction-shaped, approval-claiming, or pressure text.",
+      "type": "array",
+      "items": { "$ref": "quoted-evidence.schema.json" }
+    },
+    "proposed_action": { "$ref": "proposed-action.schema.json" }
+  },
+  "if": {
+    "properties": { "verdict": { "const": "insufficient-evidence" } }
+  },
+  "then": {
+    "properties": { "discriminating_checks": { "minItems": 0 } }
+  },
+  "else": {
+    "properties": { "discriminating_checks": { "minItems": 1 } }
+  }
+}

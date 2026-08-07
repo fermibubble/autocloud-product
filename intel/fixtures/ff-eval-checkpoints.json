@@ -1,0 +1,128 @@
+{
+ "comment": "Pre-armed open T+30 decision checkpoints for the fastforward-golden suite; fx- episodes resolve oldest-open-checkpoint-first (test-only semantics). Pair with fastforward/fixtures/ff-eval-results.json loaded into the FF service.",
+ "services": [],
+ "episodes": [
+  {
+   "episode_id": "fx-ff-leak",
+   "service_uid": "svc://autocloud/demo-leak/prod/us-central1",
+   "revision_from": "demo-leak-eval-0",
+   "revision_to": "demo-leak-eval-1",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:evaldemo"
+   },
+   "started_at": "2026-07-20T00:00:00Z",
+   "status": "in_progress"
+  },
+  {
+   "episode_id": "fx-ff-retry",
+   "service_uid": "svc://autocloud/demo-retry/prod/us-central1",
+   "revision_from": "demo-retry-eval-0",
+   "revision_to": "demo-retry-eval-1",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:evaldemo"
+   },
+   "started_at": "2026-07-20T00:00:00Z",
+   "status": "in_progress"
+  },
+  {
+   "episode_id": "fx-ff-cred",
+   "service_uid": "svc://autocloud/demo-cred/prod/us-central1",
+   "revision_from": "demo-cred-eval-0",
+   "revision_to": "demo-cred-eval-1",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:evaldemo"
+   },
+   "started_at": "2026-07-20T00:00:00Z",
+   "status": "in_progress"
+  },
+  {
+   "episode_id": "fx-ff-healthy",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-eval-0",
+   "revision_to": "demo-healthy-eval-1",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:evaldemo"
+   },
+   "started_at": "2026-07-20T00:00:00Z",
+   "status": "in_progress"
+  },
+  {
+   "episode_id": "fx-ff-budget",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-eval-0",
+   "revision_to": "demo-healthy-eval-1",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:evaldemo"
+   },
+   "started_at": "2026-07-20T00:00:00Z",
+   "status": "in_progress"
+  }
+ ],
+ "open_checkpoints": [
+  {
+   "episode_id": "fx-ff-leak",
+   "stage": "T+30"
+  },
+  {
+   "episode_id": "fx-ff-retry",
+   "stage": "T+30"
+  },
+  {
+   "episode_id": "fx-ff-cred",
+   "stage": "T+30"
+  },
+  {
+   "episode_id": "fx-ff-healthy",
+   "stage": "T+30"
+  },
+  {
+   "episode_id": "fx-ff-budget",
+   "stage": "T+30"
+  }
+ ]
+}

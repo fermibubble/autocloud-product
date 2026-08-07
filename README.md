@@ -106,18 +106,66 @@ never deciding.
 
 Everything above runs **without GCP credentials** against `sim/gcp_sim.py`
 (a seeded, GCP-API-shaped world — only `GCP_API_BASE` swaps for prod).
+The sim-stack processes and their ports: gcp_sim (GCP API :7620, world
+face :7621), gcp-observe sim mode (MCP :7600, bundle REST :7601),
+rollout-intel (MCP :7610, REST :7611), probe target (:7640,
+`sim/probe_target.py`), fastforward (MCP :7630, REST :7631), plus the
+relay and the outcome collector.
 Verification, all key-free, all green: `scripts/golden-rollout.sh`
-(verdicts vs world truth, dynamic ladder lengths, all evidence signed),
+(verdicts vs world truth, dynamic ladder lengths, all evidence signed;
+with `FF_API` set it also requires a verified `no_material_temporal_hazard`
+Fast-Forward envelope at every legacy T+30),
 `scripts/dossier-golden.sh` (governed writes → projection → topic-prefix
 isolation → as_of time travel → live session reading the `/memory`
 mount), `scripts/replay-run.sh` (time-correct replay, false-safe
 weighted 10x), `scripts/learning-golden.sh` (recurrence threshold,
 contradiction blocking, human promotion), `scripts/experiment-run.sh`
-(skill A/B through the harness one-change gate), and
+(skill A/B through the harness one-change gate),
+`scripts/ff-golden.sh` (seeded delayed faults blocked at T+30 by verified
+temporal counterexamples, healthy control unblocked, scaled-24h labels
+confirm recall 3/3), `scripts/ff-replay.sh` (byte-identical temporal
+findings across two identical seeded runs), `scripts/ff-arms.sh`
+(signal-only vs full-escalation arm comparison),
+`scripts/ff-seed-profiles.sh` (Fast-Forward temporal profile seeding), and
 `scripts/run-suite.sh <agent>` (per-agent suites from
 `agents/*/evals/suite.yaml`; a suite may bind several rubrics — sessions
 execute once, every rubric grades them, each against its own threshold;
 judge-scored rubrics need an eval worker with ANTHROPIC_API_KEY).
+
+## Fast-Forward (`fastforward/`)
+
+Test the cliff, not the whole road: the delayed rollout failures that
+hurt most are not "more minutes of the same telemetry" but a boundary
+crossing — handle exhaustion, retry amplification, credential expiry
+after key rotation — that the T+0..T+30 ladder window never shows.
+Fast-Forward compiles each deploy's change manifest into typed temporal
+hazards (`resource_lifecycle`, `rate_balance`, `clock_expiry`,
+`state_boundary`, `concurrency`, `agent_longevity`) and escalates
+**Signal → Probe**: cheap counter/slope projection first, then — only
+where a hazard warrants it — deterministic probe runs against an isolated
+probe-target instance advanced along non-wall-clock age axes (cycles,
+requests, rotations, credential age). Every request lands in a closed
+outcome vocabulary — `temporal_counterexample | bounded_future_envelope |
+projected_boundary | unsupported_temporal_risk |
+no_material_temporal_hazard | inconclusive_budget` — and results are
+minted as **signed observation envelopes** (source `rollout-fastforward`)
+that the T+30 policy rule (`temporal-evidence`, `rollout-slo.yaml`
+version 2) consumes: `temporal_counterexample` fails the stage;
+`inconclusive_budget` and `unsupported_temporal_risk` are
+insufficient-evidence and **never become a pass**; an absent or
+unverified envelope is likewise insufficient — Fast-Forward can gate, but
+never rubber-stamp.
+
+The relay and rollout-intel take `FF_API` (the Fast-Forward REST base,
+`http://127.0.0.1:7631`) to file FF requests at deploy time and to pull
+result envelopes at T+30; without it the stack runs pre-FF behavior. The
+FF service itself reads `FF_DB`, `WORLD_API`, `PROBE_API`, `OBSERVE_API`,
+`OBS_SIGNING_KEY`, and `FF_MODE` (`full` | `signal_only`).
+**SIM_TIME_SCALE coupling warning:** the sim world, the relay, the
+outcome collector, and any golden script must all share the SAME
+`SIM_TIME_SCALE` value — no endpoint broadcasts it, so a mismatch
+silently desynchronizes ladder timing from ground-truth fault timing and
+invalidates every time-based assertion.
 
 ## Activation (requires your GCP project)
 

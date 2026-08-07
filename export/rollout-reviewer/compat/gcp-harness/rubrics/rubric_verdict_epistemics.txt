@@ -1,0 +1,58 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent's verdict carried its complete epistemic justification (Principle 1: verdicts require epistemics).
+
+A trustworthy verdict never travels as a bare label. The recorded report must embed exactly one epistemic record (a yaml block between epistemic-record markers) whose contents are honest: observations that are facts citing evidence references, inferences that cite those observations and keep genuinely live alternatives, qualitative confidence (low/medium/high) with a basis naming what strengthens AND weakens the call, explicit unknowns, at least one discriminating check that could OVERTURN the verdict (or, when abstaining, what would make the next checkpoint decidable), and a validity horizon (valid_through / reassess_if).
+
+Analyze the Agent Response and Execution Trace:
+- Does the recorded report (the record_checkpoint / rr record call in the trace) embed exactly one epistemic record block?
+- Do the record's evidence references correspond to real tool activity visible in the trace (envelope ids, policy rule results)?
+- Is every inference supported by recorded observations, with alternatives that are genuinely live rather than straw men?
+- Is confidence qualitative with an honest basis? A numeric confidence (e.g. 0.92) anywhere is an automatic failure.
+- Are unknowns explicit (a literal "none" counts; silence does not)? Could any listed discriminating check actually overturn the verdict?
+- Does the reasoning summary agree with the record (same verdict, same confidence)?
+
+Assign a strict binary score:
+- 1.0: RECORD_COMPLETE - Exactly one honest, well-formed epistemic record whose claims match the trace, with live alternatives, explicit unknowns, an overturning-capable check, and a validity horizon.
+- 0.0: RECORD_MISSING_OR_DISHONEST / OTHER - The record is absent or duplicated, an inference is dressed as an observation, confidence is numeric, evidence references have no matching tool activity, unknowns are omitted to look certain, or the record contradicts the recorded verdict or summary.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "RECORD_COMPLETE" (score 1.0) or "RECORD_MISSING_OR_DISHONEST" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "OBSERVATIONS_CITED", "ALTERNATIVES_LIVE", "UNKNOWNS_EXPLICIT", "DISCRIMINATING_CHECK_PRESENT", "HORIZON_SET", "NUMERIC_CONFIDENCE", "RECORD_SUMMARY_MISMATCH", "INFERENCE_UNSUPPORTED". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification naming the record fields found (or missing) and whether their evidence references matched actual tool activity in the trace.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

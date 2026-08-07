@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "proposed-action.schema.json",
+  "title": "P4 - Proposed action (draft-only remediation)",
+  "description": "Autonomy requires a dial: the reviewer's dial is set to advisory, so any remediation is a DRAFT for a human. posture is const draft-only - the schema cannot express an executed action. The draft names the autonomy level the action WOULD need, its blast radius, and the humans who must approve.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "posture", "autonomy_level", "blast_radius", "approval_required_from", "if_no_approval"],
+  "properties": {
+    "action": { "type": "string", "minLength": 5 },
+    "posture": { "const": "draft-only" },
+    "autonomy_level": { "type": "integer", "minimum": 0, "maximum": 6 },
+    "policy": { "type": "string" },
+    "blast_radius": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cohort", "regions", "reversible"],
+      "properties": {
+        "cohort": { "type": "string", "minLength": 3 },
+        "regions": { "type": "array", "items": { "type": "string" } },
+        "reversible": { "type": "boolean" }
+      }
+    },
+    "approval_required_from": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 3 }
+    },
+    "if_no_approval": { "type": "string", "minLength": 10 }
+  }
+}

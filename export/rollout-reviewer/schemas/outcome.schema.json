@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "outcome.schema.json",
+  "title": "P9 - Outcome record (ground-truth label)",
+  "description": "Learning requires outcomes: reality grades the reviewer. This is the body your collector or humans POST to /intel/episodes/{id}/outcome. Labels come from YOUR ground truth (monitoring, incidents, rollbacks) - never from the agent's verdicts; the store never overwrites an existing final_label (a human's label outranks the collector). Standalone schema for wiring your outcome pipeline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["horizon"],
+  "properties": {
+    "horizon": { "enum": ["30m", "2h", "24h", "final"] },
+    "slo": {
+      "type": "object",
+      "description": "The SLO readings observed at this horizon (free-form keys, e.g. p99_ms, error_rate)."
+    },
+    "rollback_detected": { "type": "boolean" },
+    "rollback_at": { "type": ["string", "null"] },
+    "incident_refs": { "type": "array", "items": { "type": "string" } },
+    "final_label": {
+      "description": "Only meaningful with horizon=final; applied once, never overwritten.",
+      "enum": ["healthy", "regressed", "rolled_back"]
+    },
+    "source": { "enum": ["collector", "webhook", "human"] },
+    "notes": { "type": "string" }
+  }
+}

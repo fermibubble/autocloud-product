@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# rr - single entrypoint the agent invokes through run_command /
+# sandbox_run_command. Supplies the python environment (uv-managed,
+# from the rollout-intel server project which carries the mcp client)
+# and dispatches to rr.py. Two extra conveniences beyond rr.py:
+#
+#   rr validate EPISODE [--require-quoted-evidence]   record validator
+#   rr notify   [args...]                             legacy chat renderer
+#
+# Everything else passes straight through to rr.py (context, checks,
+# record, intel, observe, new-episode, open-checkpoint, outcome, episode).
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$DIR/../.." && pwd)"
+PROJ="$ROOT/servers/rollout-intel"
+
+case "${1:-}" in
+  validate)
+    shift
+    EP="${1:?usage: rr validate EPISODE [--require-quoted-evidence]}"; shift
+    exec uv run --project "$PROJ" --with jsonschema \
+      python "$ROOT/scripts/validate-epistemic-record.py" \
+      --episode "$EP" --intel "${RR_INTEL_REST:-http://127.0.0.1:7611}" "$@"
+    ;;
+  notify)
+    shift
+    exec uv run --project "$PROJ" \
+      python "$ROOT/compat/notify-from-record.py" \
+      --intel "${RR_INTEL_REST:-http://127.0.0.1:7611}" "$@"
+    ;;
+  *)
+    exec uv run --project "$PROJ" python "$DIR/rr.py" "$@"
+    ;;
+esac

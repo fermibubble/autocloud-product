@@ -115,6 +115,20 @@ def main() -> None:
             episode = _req(f"{INTEL}/intel/episodes", event)
             print(f"relay: deploy {event['service']} -> episode {episode['episode_id']} "
                   f"(identity {episode.get('identity_status')})")
+            # Fast-forward hand-off: env-gated, fire-and-forget — the relay
+            # owns the clock, FF only receives the deadline. A failed or
+            # hung FF (bounded by _req's timeout) never breaks the loop.
+            ff = os.environ.get("FF_API")
+            if ff:
+                try:
+                    _req(f"{ff}/ff/requests", {
+                        "episode_id": episode["episode_id"],
+                        "service": event["service"],
+                        "deploy_event": event,
+                        "deadline_s": 30 * 60 * SCALE,
+                        "budget": {"max_probe_seconds": 60, "max_steps": 6}})
+                except Exception as exc:
+                    print(f"relay: WARNING fast-forward hand-off failed: {exc}")
             threading.Thread(target=run_episode, args=(episode,), daemon=True).start()
         seen = len(events)
         time.sleep(2)

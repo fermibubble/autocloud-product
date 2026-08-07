@@ -1,0 +1,53 @@
+== floor probe result ==
+{
+ "error": "policy_conflict: policy evaluated fail (rule failures) \u2014 a 'healthy' verdict cannot be recorded. Reconcile your verdict with the policy result.",
+ "policy": {
+  "policy_status": "fail",
+  "policy_version": "rollout-slo@1",
+  "stage": "T+30",
+  "rule_results": [
+   {
+    "rule_id": "min-samples",
+    "status": "pass",
+    "observed": 54000,
+    "threshold": 5000,
+    "observation_ids": [
+     "obs-7cee029ef510"
+    ],
+    "note": ""
+   },
+   {
+    "rule_id": "p99-envelope",
+    "status": "pass",
+    "observed": 206.4,
+    "threshold": 250,
+    "observation_ids": [
+     "obs-1c5c9d79dde7"
+    ],
+    "note": ""
+   },
+   {
+    "rule_id": "error-rate",
+    "status": "fail",
+    "observed": 0.021,
+    "threshold": 0.005,
+    "observation_ids": [
+     "obs-567d2fbac21c"
+    ],
+    "note": ""
+   },
+   {
+    "rule_id": "no-new-fatal",
+    "status": "fail",
+    "observed": "1 matching entries",
+    "threshold": "0 new fatal patterns",
+    "observation_ids": [
+     "obs-74d4c3aa6107"
+    ],
+    "note": "FATAL NullPointerException in CheckoutHandler rev demo-errors-00008-b1a"
+   }
+  ],
+  "required_missing": [],
+  "unverified_observations": []
+ }
+}

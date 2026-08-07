@@ -81,3 +81,39 @@ The corpus referenced 14+ tools/CLIs absent from the product: gcloud (556 refs a
 | best-practices-assessor (37-file corpus) | best-practices-assessor@1.0.0 (curated fork) |
 | design/* terraform_validator_instructions | best-practices-assessor references/terraform-review.md (sound rules kept, unsound inverted) |
 | Everything else | `../skills-legacy-archive-20260726.tar.gz` (58 diagnostics, 14 grounding files, cloud-deploy, blast-radius, design pipelines) |
+
+## 7. Addendum — trustworthy-rollout-review and the pinned legacy baseline (2026-08-01)
+
+**trustworthy-rollout-review@1.0.0** is now the reviewer's protocol skill in
+both specs. It is built directly on the nine principles of trustworthy
+autonomy (docs/product/rollout-reviewer.md): one spec per principle under
+`references/epistemics.md` … `outcomes.md`, with the P1 epistemic
+record machine-parseable and schema-validated
+(`schemas/epistemic-record.schema.json`,
+`scripts/validate-epistemic-record.py`). The record is a convention scored by
+evals, not recorder enforcement — gap G1 in the product standard stays open
+at the structural layer and says so. The evaluation baseline for this skill
+is **legacy-rollout-review-baseline@0.0.0 only** — the paired comparison is
+legacy vs trustworthy, nothing else.
+
+**legacy-rollout-review-baseline@0.0.0** re-intakes the archived legacy
+rollout-review skill (user-provided, body verbatim) as a pinned evaluation
+baseline under a deliberate contribution-checklist exemption: it contains
+gcloud steps, "do not ask permission" autonomy prose, and the alien
+SUCCESS/FAILURE verdict vocabulary. Quarantine: eval-baseline label, a
+deliberately search-poor description, and an appended intake shim (verdict
+mapping at record time, /workspace/rollout-report.md deliverable, nonexistent
+surfaces noted-not-simulated). Standing caution #1 (Google-internal
+provenance) applies — treat as internal, never demo externally. Caution #5's
+name-collision hazard is avoided by the new name.
+
+**Rubric v3s** close open item #4: rollout-review@3 adds the programmatic
+epistemic-record-embedded presence check; rollout-reviewer-tenets@3 adds the
+judged epistemic-record-complete criterion (not a gate — tighten-only remains
+the only gate). The paired evaluation protocol is
+`scripts/baseline-vs-trustworthy.sh`, with pre-registered bars in its header.
+
+New standing caution: `skills/` now deliberately contains one non-conforming
+package (the pinned baseline). It publishes cleanly (CLI lint checks only
+name/version) — do not "fix" it to the checklist; its non-conformance is the
+baseline being measured.

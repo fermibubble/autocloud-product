@@ -1,0 +1,6 @@
+[project]
+name = "autocloud-gcp-mcp"
+version = "0.1.0"
+description = "Read-only GCP observability tools for AutoCloud agents (ADC lives here, never in sandboxes)"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.2,<2", "google-auth>=2.30", "httpx>=0.27", "requests>=2.31"]

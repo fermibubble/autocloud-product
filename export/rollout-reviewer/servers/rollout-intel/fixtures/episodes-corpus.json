@@ -1,0 +1,537 @@
+{
+ "comment": "Labeled replay corpus: FIXED ids, mixed labels/architectures/strategies over Jan-May 2026; includes 2 false-safe and 1 false-halt verdicts on purpose so decision-quality metrics are non-trivial.",
+ "services": [
+  {
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "name": "demo-healthy",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "platform",
+   "source": "catalog",
+   "status": "confirmed"
+  },
+  {
+   "service_uid": "svc://autocloud/demo-latency/prod/us-central1",
+   "name": "demo-latency",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "platform",
+   "source": "catalog",
+   "status": "confirmed"
+  },
+  {
+   "service_uid": "svc://autocloud/demo-errors/prod/us-central1",
+   "name": "demo-errors",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "platform",
+   "source": "catalog",
+   "status": "confirmed"
+  },
+  {
+   "service_uid": "svc://autocloud/demo-thin/prod/us-central1",
+   "name": "demo-thin",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "platform",
+   "source": "catalog",
+   "status": "confirmed"
+  },
+  {
+   "service_uid": "svc://autocloud/checkout-api/prod/us-central1",
+   "name": "checkout-api",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "payments",
+   "source": "catalog",
+   "status": "confirmed"
+  },
+  {
+   "service_uid": "svc://autocloud/checkout-worker/prod/us-central1",
+   "name": "checkout-worker",
+   "environment": "prod",
+   "region": "us-central1",
+   "runtime": "cloud-run",
+   "architecture_version": "v1",
+   "owner": "payments",
+   "source": "catalog",
+   "status": "confirmed"
+  }
+ ],
+ "episodes": [
+  {
+   "episode_id": "fx_ep_001",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-001",
+   "revision_to": "demo-healthy-rev-002",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-01-05T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-01-06T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_002",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-002",
+   "revision_to": "demo-healthy-rev-003",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-01-19T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-01-20T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_003",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-003",
+   "revision_to": "demo-healthy-rev-004",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary",
+     "config"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-02-02T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "regressed",
+   "labeled_at": "2026-02-03T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_004",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-004",
+   "revision_to": "demo-healthy-rev-005",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "config"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-02-16T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-02-17T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_005",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-005",
+   "revision_to": "demo-healthy-rev-006",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "all-at-once",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-03-08T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "regressed",
+   "labeled_at": "2026-03-09T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_006",
+   "service_uid": "svc://autocloud/demo-healthy/prod/us-central1",
+   "revision_from": "demo-healthy-rev-006",
+   "revision_to": "demo-healthy-rev-007",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v2",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary",
+     "infra"
+    ],
+    "image_digest": "sha256:fxdemo-h"
+   },
+   "started_at": "2026-04-01T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-04-02T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_007",
+   "service_uid": "svc://autocloud/demo-latency/prod/us-central1",
+   "revision_from": "demo-latency-rev-007",
+   "revision_to": "demo-latency-rev-008",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-l"
+   },
+   "started_at": "2026-01-12T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-01-13T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_008",
+   "service_uid": "svc://autocloud/demo-latency/prod/us-central1",
+   "revision_from": "demo-latency-rev-008",
+   "revision_to": "demo-latency-rev-009",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-l"
+   },
+   "started_at": "2026-02-09T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "regressed",
+   "labeled_at": "2026-02-10T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_009",
+   "service_uid": "svc://autocloud/demo-latency/prod/us-central1",
+   "revision_from": "demo-latency-rev-009",
+   "revision_to": "demo-latency-rev-010",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "config"
+    ],
+    "image_digest": "sha256:fxdemo-l"
+   },
+   "started_at": "2026-03-15T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "healthy",
+   "labeled_at": "2026-03-16T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_010",
+   "service_uid": "svc://autocloud/demo-latency/prod/us-central1",
+   "revision_from": "demo-latency-rev-010",
+   "revision_to": "demo-latency-rev-011",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-l"
+   },
+   "started_at": "2026-04-20T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "insufficient-evidence",
+   "final_label": "healthy",
+   "labeled_at": "2026-04-21T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_011",
+   "service_uid": "svc://autocloud/demo-errors/prod/us-central1",
+   "revision_from": "demo-errors-rev-011",
+   "revision_to": "demo-errors-rev-012",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-e"
+   },
+   "started_at": "2026-01-25T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "rolled_back",
+   "labeled_at": "2026-01-26T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_012",
+   "service_uid": "svc://autocloud/demo-errors/prod/us-central1",
+   "revision_from": "demo-errors-rev-012",
+   "revision_to": "demo-errors-rev-013",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "config"
+    ],
+    "image_digest": "sha256:fxdemo-e"
+   },
+   "started_at": "2026-02-22T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-02-23T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_013",
+   "service_uid": "svc://autocloud/demo-errors/prod/us-central1",
+   "revision_from": "demo-errors-rev-013",
+   "revision_to": "demo-errors-rev-014",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "all-at-once",
+    "change_classes": [
+     "application_binary",
+     "schema"
+    ],
+    "image_digest": "sha256:fxdemo-e"
+   },
+   "started_at": "2026-03-30T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "rolled_back",
+   "labeled_at": "2026-03-31T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_014",
+   "service_uid": "svc://autocloud/demo-thin/prod/us-central1",
+   "revision_from": "demo-thin-rev-014",
+   "revision_to": "demo-thin-rev-015",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-t"
+   },
+   "started_at": "2026-02-05T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "insufficient-evidence",
+   "final_label": "healthy",
+   "labeled_at": "2026-02-06T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_015",
+   "service_uid": "svc://autocloud/demo-thin/prod/us-central1",
+   "revision_from": "demo-thin-rev-015",
+   "revision_to": "demo-thin-rev-016",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "demo",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxdemo-t"
+   },
+   "started_at": "2026-03-21T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-03-22T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_016",
+   "service_uid": "svc://autocloud/checkout-api/prod/us-central1",
+   "revision_from": "checkout-api-rev-016",
+   "revision_to": "checkout-api-rev-017",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "checkout",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxchecko"
+   },
+   "started_at": "2026-01-08T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-01-09T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_017",
+   "service_uid": "svc://autocloud/checkout-api/prod/us-central1",
+   "revision_from": "checkout-api-rev-017",
+   "revision_to": "checkout-api-rev-018",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "checkout",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary",
+     "flags"
+    ],
+    "image_digest": "sha256:fxchecko"
+   },
+   "started_at": "2026-02-14T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "regressed",
+   "labeled_at": "2026-02-15T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_018",
+   "service_uid": "svc://autocloud/checkout-api/prod/us-central1",
+   "revision_from": "checkout-api-rev-018",
+   "revision_to": "checkout-api-rev-019",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "checkout",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v2",
+    "strategy": "blue-green",
+    "change_classes": [
+     "infra"
+    ],
+    "image_digest": "sha256:fxchecko"
+   },
+   "started_at": "2026-04-03T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-04-04T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_019",
+   "service_uid": "svc://autocloud/checkout-worker/prod/us-central1",
+   "revision_from": "checkout-worker-rev-019",
+   "revision_to": "checkout-worker-rev-020",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "checkout",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxchecko"
+   },
+   "started_at": "2026-03-02T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "regression-suspected",
+   "final_label": "rolled_back",
+   "labeled_at": "2026-03-03T09:00:00Z"
+  },
+  {
+   "episode_id": "fx_ep_020",
+   "service_uid": "svc://autocloud/checkout-worker/prod/us-central1",
+   "revision_from": "checkout-worker-rev-020",
+   "revision_to": "checkout-worker-rev-021",
+   "fingerprint": {
+    "fingerprint_version": "v1",
+    "service_family": "checkout",
+    "runtime": "cloud-run",
+    "environment": "prod",
+    "architecture_version": "v1",
+    "strategy": "canary",
+    "change_classes": [
+     "application_binary"
+    ],
+    "image_digest": "sha256:fxchecko"
+   },
+   "started_at": "2026-05-11T09:00:00Z",
+   "status": "closed",
+   "final_verdict": "healthy",
+   "final_label": "healthy",
+   "labeled_at": "2026-05-12T09:00:00Z"
+  }
+ ]
+}

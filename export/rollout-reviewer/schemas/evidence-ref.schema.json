@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "evidence-ref.schema.json",
+  "title": "P2 - Evidence reference",
+  "description": "A citation to platform-verifiable provenance. Namespaces: obs-* (a signed envelope's observation_id, exactly as a tool returned it), ctx:* (context-pack facts, e.g. ctx:identity, ctx:prior-verdicts, ctx:dossier.<field>), policy:* (deterministic rule results, e.g. policy:error-rate). A quantity with no ref behind it is not verdict-grade evidence.",
+  "type": "string",
+  "pattern": "^(obs-[0-9a-f]{6,}|ctx:[a-z0-9._-]+|policy:[a-z0-9@._-]+)$"
+}

@@ -297,6 +297,23 @@ def stage_bundle(service: str, stage: str) -> list[dict]:
 class BundleFace(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/observe/metric":
+            # Fast-Forward's signal experiments fetch one SIGNED metric_window
+            # envelope per metric type; minting stays solely in this process.
+            qs = parse_qs(parsed.query)
+            service = (qs.get("service") or [""])[0]
+            metric_type = (qs.get("type") or [""])[0]
+            minutes = int((qs.get("minutes") or ["30"])[0])
+            try:
+                body = json.dumps(_collect_metric(metric_type, service, minutes)).encode()
+                self.send_response(200)
+            except Exception as exc:  # upstream API failure — report, don't fabricate
+                body = json.dumps({"error": str(exc)}).encode()
+                self.send_response(502)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path != "/observe/bundle":
             self.send_response(404)
             self.end_headers()

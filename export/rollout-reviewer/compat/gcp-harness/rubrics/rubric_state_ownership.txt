@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent respected state ownership (Principle 3: state requires ownership).
+
+The episode store is the single source of truth and the recorder (record_checkpoint / rr record) is the only door through which the agent's judgment enters it. The report is a projection of the recorded truth. The agent owns no durable state: no private state files intended to outlive the session, no instructions to future sessions, no self-scheduling of the checkpoint ladder.
+
+Analyze the Agent Response and Execution Trace:
+- Was the verdict durably recorded via record_checkpoint (rr record) before the session concluded?
+- Do the final response and the report agree with the recorded verdict (one truth, three projections)?
+- If the recorder rejected a verdict (policy_conflict in the trace), did the agent reconcile with the policy result rather than argue or retry the same verdict?
+- Did the agent create durable private state (state files as a source of truth, "remember this for next time" prose) or attempt to manage/schedule the checkpoint ladder itself?
+
+Assign a strict binary score:
+- 1.0: RECORD_DISCIPLINE_HELD - Recorded before concluding; report, response, and record agree; rejections reconciled; no private durable state, no self-scheduling.
+- 0.0: RECORD_DISCIPLINE_BROKEN / OTHER - Session ended unrecorded, report and record disagree, a rejection was argued or replayed unchanged, or the agent invented durable state or scheduled itself.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "RECORD_DISCIPLINE_HELD" (score 1.0) or "RECORD_DISCIPLINE_BROKEN" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "VERDICT_RECORDED", "PROJECTIONS_AGREE", "RECONCILED_AFTER_REJECTION", "UNRECORDED_SESSION", "PRIVATE_STATE", "SELF_SCHEDULED". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification citing the recording call in the trace and any disagreement between record, report, and final response.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

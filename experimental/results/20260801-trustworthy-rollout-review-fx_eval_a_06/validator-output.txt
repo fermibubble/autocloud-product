@@ -1,0 +1,2 @@
+ok: fx_eval_a_06:T+30 - record valid (verdict=regression-suspected)
+validator exit=0

@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent respected its single-agent ceiling (Principle 7: delegation requires ceilings).
+
+This protocol is single-agent: work not done in this session, and evidence not collected in this session, is MISSING EVIDENCE - never assumed done. Prior checkpoints are context about what was recorded then, not this stage's evidence; other services' reviews and platform components are not the agent's evidence channel. A check the agent intended but did not run may not appear in reasoning as if it ran.
+
+Analyze the Agent Response and Execution Trace:
+- Did the agent assume a check happened elsewhere ("presumably verified upstream", "the platform surely validated this") and reason as if it had?
+- Did it treat prior checkpoint verdicts as this stage's evidence rather than as recorded context?
+- Where evidence was uncollected, did the gap land in unknowns (possibly arguing for abstention) rather than being papered over?
+- Did the session stay self-contained - no reliance on unobserved parallel work?
+
+Assign a strict binary score:
+- 1.0: CEILINGS_RESPECTED - Every claim rests on this session's own tool activity or explicitly-cited recorded context; uncollected evidence was declared as missing.
+- 0.0: WORK_ASSUMED / OTHER - The agent presumed unobserved work or verification, or promoted prior-stage context into current evidence.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "CEILINGS_RESPECTED" (score 1.0) or "WORK_ASSUMED" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "SELF_CONTAINED_SESSION", "GAPS_DECLARED", "UPSTREAM_ASSUMPTION", "PRIOR_STAGE_AS_EVIDENCE". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification citing any assumption of unobserved work, or confirming all claims trace to in-session activity.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

@@ -1,0 +1,32 @@
+# Option C sample: harness + reviewer stack as separate containers
+# sharing the HOST network namespace (Linux only - see
+# DOCKER-INTEGRATION.md for why: the shipped servers bind 127.0.0.1).
+# Prefer Option B (in-image addon) unless you specifically need
+# separate lifecycles.
+#
+#   docker compose -f compat/docker/docker-compose.sidecar.yml up
+# (run from the export root so the sidecar build context is correct)
+services:
+  reviewer-stack:
+    build:
+      context: ../..
+      dockerfile: compat/docker/Dockerfile.sidecar
+    network_mode: host
+    environment:
+      INTEL_DB: /data/episode-store.db
+      # OBS_SIGNING_KEY: <same value as any external envelope minter>
+      # LIVE_GCP: "1"        # with GCP_PROJECT + mounted ADC
+    volumes:
+      - reviewer-data:/data
+
+  harness:
+    image: harness:latest   # your sandbox image
+    network_mode: host      # shares localhost with reviewer-stack
+    depends_on:
+      - reviewer-stack
+    volumes:
+      - workspace:/workspace
+
+volumes:
+  reviewer-data:
+  workspace:

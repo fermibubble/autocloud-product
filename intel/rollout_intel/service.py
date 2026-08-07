@@ -190,6 +190,16 @@ class Intel:
             envs = resp.json()
         except Exception as exc:
             return {"error": f"evidence collection failed: {exc}"}
+        ff_api = os.environ.get("FF_API")
+        if ff_api:
+            # On ANY failure proceed without FF envelopes — the v2
+            # temporal-evidence rule then reports insufficient, never pass.
+            try:
+                ff_resp = httpx.get(
+                    f"{ff_api}/ff/episodes/{episode_id}/result-envelopes", timeout=5)
+                envs.extend(ff_resp.json().get("envelopes", []))
+            except Exception:
+                pass
         for env in envs:
             ok, _ = envelope.verify(env)
             self.db.insert_observation(episode_id, checkpoint["checkpoint_id"], env, ok)

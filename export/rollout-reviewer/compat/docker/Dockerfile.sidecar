@@ -1,0 +1,23 @@
+# Standalone image for the reviewer stack (Option C - sidecar).
+# Build FROM the export folder as context:
+#   docker build -f compat/docker/Dockerfile.sidecar -t rollout-reviewer-stack .
+#
+# NOTE: the shipped servers bind 127.0.0.1, so this sidecar is reachable
+# from the harness container only when they share a network namespace
+# (network_mode: host on Linux, or network_mode: "service:...").
+# See DOCKER-INTEGRATION.md Option C for the honest constraints;
+# Option B (in-image addon) is the default recommendation.
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 curl ca-certificates bash \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/ && mv /root/.local/bin/uvx /usr/local/bin/
+COPY . /opt/rollout-reviewer/
+RUN uv python install 3.12 \
+    && cd /opt/rollout-reviewer/servers/rollout-intel && uv sync --frozen \
+    && cd /opt/rollout-reviewer/servers/gcp-observe && uv sync --frozen \
+    && chmod +x /opt/rollout-reviewer/scripts/*.sh
+EXPOSE 7610 7611 7600 7601 7620 7621
+CMD ["/bin/bash", "-c", "/opt/rollout-reviewer/scripts/run-stack.sh && exec tail -F /opt/rollout-reviewer/run/*.log"]

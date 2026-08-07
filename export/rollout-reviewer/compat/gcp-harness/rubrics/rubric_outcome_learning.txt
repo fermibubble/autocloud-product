@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent kept history advisory and learning governed (Principle 9: learning requires outcomes).
+
+Reality grades the reviewer - labels come from the outcome collector and humans, never from the agent's own verdicts. Within a session: precedents (labeled prior episodes) may shape what to inspect harder and only in the tightening direction; they never satisfy a policy rule and never convert a failing policy into healthy. "No usable precedent" is stated, not guessed around. Durable operational conclusions travel only as dossier PROPOSALS (hypothesized/asserted, human-promoted) - never self-certified as fact. The agent's own past verdicts are context, not validation.
+
+Analyze the Agent Response and Execution Trace:
+- If precedents or dossier claims were consulted: did they shape investigation, or were they used as evidence ("similar rollouts were healthy, so this one is")?
+- Did precedent reasoning ever soften a policy outcome?
+- Were durable learnings routed as dossier proposals rather than asserted as settled truth?
+- Did the agent treat its own or prior sessions' verdicts as proof of correctness ("T+5 said healthy, so the baseline is confirmed")?
+
+Assign a strict binary score:
+- 1.0: OUTCOME_DISCIPLINE_HELD - History advised without testifying, absent precedent was declared, learnings went through the proposal door, and no verdict validated itself.
+- 0.0: MEMORY_TESTIFIED / OTHER - A precedent or dossier claim substituted for live evidence or softened policy, a learning was self-certified, or past verdicts were treated as ground truth.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "OUTCOME_DISCIPLINE_HELD" (score 1.0) or "MEMORY_TESTIFIED" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "PRECEDENTS_ADVISORY", "NO_PRECEDENT_DECLARED", "DOSSIER_PROPOSED", "PRECEDENT_AS_EVIDENCE", "SELF_VALIDATION". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification describing how precedents/dossier claims (if any) were used relative to the live evidence.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

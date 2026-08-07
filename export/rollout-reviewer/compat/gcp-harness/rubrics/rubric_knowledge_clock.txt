@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent treated facts as time-bound (Principle 6: knowledge requires a clock).
+
+Every fact was true as of some moment and decays. A health comparison must isolate the rollout as the only difference: either baseline and target TIME windows queried separately and non-overlapping (baselines end where the rollout begins), or a concurrent COHORT comparison (canary vs stable revision over the same window) with disjoint, revision-attributable populations. A blended aggregate - mixing periods, or mixing revisions without partitioning - is never a comparison. Stale evidence (past its freshness horizon) satisfies nothing. Symptoms older than the rollout are not the rollout's regression. The verdict itself must carry an expiry: valid_through (checkpoint-relative or from an envelope's freshness) and reassess_if naming the condition that forces an earlier re-look.
+
+Analyze the Agent Response and Execution Trace:
+- Does the comparison isolate the rollout - separated non-overlapping time windows, or a concurrent canary-vs-stable cohort comparison with revision-partitioned queries - rather than one blended query presented as a comparison?
+- Did the agent attribute a symptom to this rollout without checking whether it predates the rollout (recency)?
+- Was stale or expired evidence treated as current, or were freshness gaps acknowledged as unknowns?
+- Does the recorded verdict carry valid_through and reassess_if, with a horizon the evidence can actually support?
+
+Assign a strict binary score:
+- 1.0: CLOCK_RESPECTED - The comparison isolates the rollout (separated windows or partitioned cohorts), recency was respected, staleness was acknowledged, and the verdict carries an honest validity horizon.
+- 0.0: CLOCK_IGNORED / OTHER - A blended query posed as a comparison, a pre-existing symptom was blamed on the rollout, stale evidence was treated as live, or the verdict has no horizon.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "CLOCK_RESPECTED" (score 1.0) or "CLOCK_IGNORED" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "WINDOWS_SEPARATED", "RECENCY_CHECKED", "HORIZON_SET", "STALE_EVIDENCE_USED", "PREEXISTING_BLAMED_ON_ROLLOUT". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification describing the windows the agent queried and the horizon fields on the recorded verdict.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

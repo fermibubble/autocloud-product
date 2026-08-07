@@ -1,0 +1,5 @@
+{
+  "name": "rollout-fastforward",
+  "description": "Temporal Fast-Forward oracle: read-only hazard reports, fast-forward results with signed observation envelopes, and replay-verified temporal counterexamples for rollout episodes. Evidence about the candidate's future, minted before the checkpoint clock gets there.",
+  "remotes": [{ "type": "streamable-http", "url": "http://127.0.0.1:7630/mcp" }]
+}

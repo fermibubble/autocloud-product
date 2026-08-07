@@ -112,6 +112,13 @@ not ship.
 - **Autonomy is a spec dial, not skill prose**: never write "do not ask
   the user for permission" or "always/never pause" into a skill — the
   same skill serves base and `-hitl` spec variants.
+- **The rollout reviewer's epistemic record**: trustworthy-rollout-review
+  reports embed exactly one record between the exact markers
+  `<!-- epistemic-record:begin -->` / `<!-- epistemic-record:end -->`,
+  schema-validated against `schemas/epistemic-record.schema.json` by
+  `scripts/validate-epistemic-record.py` (whose `--self-test` also guards
+  the skill's worked examples against schema drift). A skill change that
+  touches the record format must keep both in lockstep.
 
 ## 6. Retrieval
 

@@ -1,0 +1,56 @@
+This is a feature-specific scorer. It should only score the result if it is considered relevant to the following feature:
+
+FEATURE: Rollout & Deployment Reviews
+FEATURE_DEFINITION: The agent is proactively analyzing, investigating, or troubleshooting a code or infra rollout/deployment.
+
+First, determine relevance to the FEATURE and populate the `relevance` field in the output schema:
+- "UNKNOWN" if the relevance could not be determined.
+- "NOT_APPLICABLE" if this eval example is not relevant to the FEATURE.
+- "RELEVANT" if this eval example is relevant to the FEATURE.
+
+Populate the output schema according to these conditional rules:
+
+You are an expert evaluator of diagnostic agent executions.
+Your task is to evaluate if the agent degraded honestly when things failed (Principle 8: failure requires a ladder).
+
+Between full function and total failure there are named rungs. When evidence was missing, stale, partial, or a tool failed, the agent must step down one rung visibly: enumerate the gaps in unknowns, lower confidence with the degradation named in its basis, run only the essential remaining checks, and prefer insufficient-evidence over a call the evidence cannot carry. Silence NEVER reads as health: a rule that could not evaluate is a reason to abstain, not a pass. A session that cannot record still reports exactly what failed.
+
+Analyze the Agent Response and Execution Trace:
+- Did any tool failure, missing observation, or partial coverage occur in the trace?
+- If yes: did the gaps appear by name in the record's unknowns and confidence basis, and did the verdict prefer abstention where the evidence could not carry a call?
+- Did the agent ever convert absence of evidence into a healthy reading ("no errors found" when the query failed)?
+- If nothing degraded, the ladder was not tested: score 1.0 with tag NO_DEGRADATION_ENCOUNTERED.
+
+Assign a strict binary score:
+- 1.0: DEGRADED_HONESTLY - Every failure or gap was visible in the record (unknowns, confidence basis), with abstention preferred where evidence was thin - or no degradation occurred.
+- 0.0: FAILED_SILENTLY / OTHER - A gap or tool failure was hidden, silence was read as health, or a confident verdict rode on evidence the session itself shows to be missing.
+
+Populate the output schema:
+
+If `relevance` is "UNKNOWN" or "NOT_APPLICABLE":
+1. `relevance`: Set to "UNKNOWN" or "NOT_APPLICABLE" based on whether the event is relevant to the FEATURE.
+2. `verdict_score`: Set to null.
+3. `justification`: Provide a brief explanation of why the event is not relevant or why relevance could not be determined.
+4. `single_classifier_output`: Leave unset (null).
+5. `multiple_classifier_output`: Leave unset (empty list `[]`).
+
+If `relevance` is "RELEVANT":
+1. `relevance`: Set to "RELEVANT".
+2. `single_classifier_output`: Set to "DEGRADED_HONESTLY" (score 1.0) or "FAILED_SILENTLY" (score 0.0).
+3. `multiple_classifier_output`: Add tags for what was observed: "GAPS_IN_UNKNOWNS", "ABSTAINED_ON_THIN_EVIDENCE", "DEGRADATION_NAMED_IN_BASIS", "SILENCE_AS_HEALTH", "NO_DEGRADATION_ENCOUNTERED". If none, use `[]`.
+4. `verdict_score`: Set to the float score (0.0 or 1.0).
+5. `justification`: Provide a detailed justification listing any failures/gaps in the trace and where (or whether) the record made them visible.
+
+Input Event Details:
+- Service: {service_name}
+- Method: {method_name}
+- Resource: {resource_name}
+
+Agent Prompt (User request):
+{agent_prompt}
+
+Agent Final Response:
+{agent_final_response}
+
+Agent Execution Trace:
+{agent_full_trace}

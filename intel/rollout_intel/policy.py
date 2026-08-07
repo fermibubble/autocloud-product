@@ -184,4 +184,27 @@ def _evaluate_rule(rule: dict, envs: list[dict]) -> RuleResult:
                           observation_ids=[env["observation_id"]],
                           note=(hits[0]["text"][:120] if hits else ""))
 
+    if rtype == "fastforward_result":
+        env = _find_type(envs, "fastforward_result")
+        if env is None:
+            return RuleResult(rid, "insufficient",
+                              note="no temporal fast-forward evidence at decision stage")
+        outcome = env.get("payload", {}).get("outcome")
+        fail_outcomes = rule.get("fail_outcomes", ["temporal_counterexample"])
+        insufficient_outcomes = rule.get(
+            "insufficient_outcomes", ["inconclusive_budget", "unsupported_temporal_risk"])
+        if outcome in fail_outcomes:
+            cx_ids = env.get("payload", {}).get("counterexample_ids", [])
+            return RuleResult(rid, "fail", observed=outcome,
+                              threshold="no confirmed temporal counterexample",
+                              observation_ids=[env["observation_id"]],
+                              note=f"confirmed counterexamples: {cx_ids}")
+        if outcome in insufficient_outcomes:
+            return RuleResult(rid, "insufficient", observed=outcome,
+                              observation_ids=[env["observation_id"]],
+                              note=f"temporal evidence inconclusive: {outcome}")
+        return RuleResult(rid, "pass", observed=outcome,
+                          threshold="no confirmed temporal counterexample",
+                          observation_ids=[env["observation_id"]])
+
     return RuleResult(rid, "insufficient", note=f"unknown rule type {rtype}")

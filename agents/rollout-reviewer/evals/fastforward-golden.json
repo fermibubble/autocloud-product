@@ -1,0 +1,22 @@
+{
+ "name": "fastforward-golden",
+ "kind": "regression",
+ "comment": "Decision-checkpoint cases exercising temporal fast-forward evidence. Expected verdicts (ground truth from the sim scenarios and the armed FF fixtures): ff-leak/ff-retry/ff-cred regression-suspected citing a counterexample; ff-healthy healthy (false-block guard); ff-budget insufficient-evidence (inconclusive_budget is never healthy).",
+ "cases": [
+  {
+   "input": "EPISODE: fx-ff-leak\nSTAGE: T+30\nSERVICE: svc://autocloud/demo-leak/prod/us-central1\nCASE: ff-leak\nPRIOR: T+15 healthy(pass)\n\nRun the T+30 checkpoint of the rollout validation protocol for this episode."
+  },
+  {
+   "input": "EPISODE: fx-ff-retry\nSTAGE: T+30\nSERVICE: svc://autocloud/demo-retry/prod/us-central1\nCASE: ff-retry\nPRIOR: T+15 healthy(pass)\n\nRun the T+30 checkpoint of the rollout validation protocol for this episode."
+  },
+  {
+   "input": "EPISODE: fx-ff-cred\nSTAGE: T+30\nSERVICE: svc://autocloud/demo-cred/prod/us-central1\nCASE: ff-cred\nPRIOR: T+15 healthy(pass)\n\nRun the T+30 checkpoint of the rollout validation protocol for this episode."
+  },
+  {
+   "input": "EPISODE: fx-ff-healthy\nSTAGE: T+30\nSERVICE: svc://autocloud/demo-healthy/prod/us-central1\nCASE: ff-healthy\nPRIOR: T+15 healthy(pass)\n\nRun the T+30 checkpoint of the rollout validation protocol for this episode."
+  },
+  {
+   "input": "EPISODE: fx-ff-budget\nSTAGE: T+30\nSERVICE: svc://autocloud/demo-healthy/prod/us-central1\nCASE: ff-budget\nPRIOR: T+15 healthy(pass)\n\nRun the T+30 checkpoint of the rollout validation protocol for this episode."
+  }
+ ]
+}

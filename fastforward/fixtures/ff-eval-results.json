@@ -1,0 +1,201 @@
+{
+  "comment": "Pre-armed terminal Fast-Forward request packets for the five eval episodes. POST this file's body to /ff/fixtures/load. Envelopes are RE-MINTED from the payload templates below at load time (fresh observation_id, observed_at, sig under the live OBS_SIGNING_KEY) — a fixture carrying a frozen old signature would be stale and fail verification. Hazard/manifest/cx ids are the real deterministic values for these manifests.",
+  "requests": [
+    {
+      "request_id": "ffr_fx_leak00000001",
+      "episode_id": "fx-ff-leak",
+      "service": "demo-leak",
+      "state": "COUNTEREXAMPLE",
+      "outcome": "temporal_counterexample",
+      "deadline_s": 240,
+      "budget": {"max_probe_seconds": 120, "max_steps": 4},
+      "manifest": {"items": [{"kind": "dependency", "name": "pg-pool", "from": "2.1.0", "to": "3.0.0"}]},
+      "snapshot": {"manifest_digest": "mf_de8fff0006cc174e", "policy_context": null, "profile_ids": [], "inventory": {"modes": ["signal", "probe"]}, "seed": 314159, "plan_digest": "pd_fixtureleak00001", "mode": "full"},
+      "hazards": [
+        {"hazard_id": "hz_2666075f8cb88f91", "class": "resource_lifecycle", "source": "floor", "features": ["dep-class:pool"], "age_dimensions": ["connection_cycles", "requests"], "expected_symptom": "positive_persistent_growth:open_handles", "experiments": ["signal:growth_projection", "probe:resource_lifecycle_v1"], "min_fidelity": {"input_shape": 0.6, "state_representativeness": 0.3}, "impact": "high", "decision_relevance": 0.9, "status": "counterexample"}
+      ],
+      "counterexamples": [
+        {
+          "cx_id": "cx_a0d5981cfe46",
+          "hazard_id": "hz_2666075f8cb88f91",
+          "candidate_digest": "mf_de8fff0006cc174e",
+          "template": "resource_lifecycle_v1",
+          "state_slice_digest": "sha256:fixture-leak-spec",
+          "event_sequence": [
+            {"action": "create", "args": {"service": "demo-leak", "revision": "demo-leak-00008-fix", "seed": 314159, "spec": {"conn_leak_per_cycle": 3, "handle_threshold": 1000, "retry_p_f": 0.05, "retry_e_k": 1, "cred_ttl_s": 3600, "reuse_after_rotate_bug": false}}},
+            {"action": "cycle", "args": {"n": 100}},
+            {"action": "cycle", "args": {"n": 100}},
+            {"action": "cycle", "args": {"n": 100}},
+            {"action": "cycle", "args": {"n": 100}},
+            {"action": "cycle", "args": {"n": 100}}
+          ],
+          "expected_stable": {"slope_per_cycle": {"median": 0.0, "mad": 0.0, "n": 4}, "source": "profile"},
+          "observed_candidate": {"slope_per_cycle": {"slope": 0.03, "lo": 0.03, "hi": 0.03}, "final_counters": {"open_handles": 25, "cycles": 500}, "events_digest": "sha256:fixture-not-replayed", "divergence_event_seq": 2},
+          "first_divergence_age": {"cycles": 200, "requests": 0, "retries": 0, "cred_age_s": 0, "rotations": 0},
+          "replay_seed": 314159,
+          "replay_verified": true
+        }
+      ],
+      "envelopes": [
+        {
+          "type": "fastforward_result",
+          "scope": {"service": "demo-leak", "episode_id": "fx-ff-leak", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"outcome": "temporal_counterexample", "request_id": "ffr_fx_leak00000001", "episode_id": "fx-ff-leak", "service": "demo-leak", "hazards": [{"hazard_id": "hz_2666075f8cb88f91", "class": "resource_lifecycle", "disposition": "counterexample", "mode": "probe"}], "fidelity": {"axes": {"input_shape": 0.7, "concurrency": 0.6, "clock_coverage": 0.5, "state_representativeness": 0.6, "dependency_behavior": 0.8, "side_effect_semantics": 1.0}, "aggregate": 0.69, "gates_met": true, "unsupported": []}, "budget": {"granted": {"max_probe_seconds": 120, "max_steps": 4}, "spent": {"probe_seconds": 2.1, "steps": 2}}, "plan_digest": "pd_fixtureleak00001", "counterexample_ids": ["cx_a0d5981cfe46"]}
+        },
+        {
+          "type": "temporal_counterexample",
+          "scope": {"service": "demo-leak", "episode_id": "fx-ff-leak", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"cx_id": "cx_a0d5981cfe46", "hazard_id": "hz_2666075f8cb88f91", "candidate_digest": "mf_de8fff0006cc174e", "template": "resource_lifecycle_v1", "state_slice_digest": "sha256:fixture-leak-spec", "event_sequence": [{"action": "create", "args": {"service": "demo-leak", "revision": "demo-leak-00008-fix", "seed": 314159, "spec": {"conn_leak_per_cycle": 3, "handle_threshold": 1000, "retry_p_f": 0.05, "retry_e_k": 1, "cred_ttl_s": 3600, "reuse_after_rotate_bug": false}}}, {"action": "cycle", "args": {"n": 100}}, {"action": "cycle", "args": {"n": 100}}, {"action": "cycle", "args": {"n": 100}}, {"action": "cycle", "args": {"n": 100}}, {"action": "cycle", "args": {"n": 100}}], "expected_stable": {"slope_per_cycle": {"median": 0.0, "mad": 0.0, "n": 4}, "source": "profile"}, "observed_candidate": {"slope_per_cycle": {"slope": 0.03, "lo": 0.03, "hi": 0.03}, "final_counters": {"open_handles": 25, "cycles": 500}, "events_digest": "sha256:fixture-not-replayed", "divergence_event_seq": 2}, "first_divergence_age": {"cycles": 200, "requests": 0, "retries": 0, "cred_age_s": 0, "rotations": 0}, "replay_seed": 314159, "replay_verified": true}
+        }
+      ]
+    },
+    {
+      "request_id": "ffr_fx_retry0000001",
+      "episode_id": "fx-ff-retry",
+      "service": "demo-retry",
+      "state": "COUNTEREXAMPLE",
+      "outcome": "temporal_counterexample",
+      "deadline_s": 240,
+      "budget": {"max_probe_seconds": 120, "max_steps": 4},
+      "manifest": {"items": [{"kind": "config", "name": "retry_max", "from": 1, "to": 4}]},
+      "snapshot": {"manifest_digest": "mf_4c0a4e7b22a590db", "policy_context": null, "profile_ids": [], "inventory": {"modes": ["signal", "probe"]}, "seed": 271828, "plan_digest": "pd_fixtureretry0001", "mode": "full"},
+      "hazards": [
+        {"hazard_id": "hz_9cadbc1d6cc2bc52", "class": "rate_balance", "source": "floor", "features": ["cfg-class:retry"], "age_dimensions": ["retries", "requests"], "expected_symptom": "sustained_positive_drift:queue_depth", "experiments": ["signal:queue_drift_projection", "probe:rate_balance_v1"], "min_fidelity": {"input_shape": 0.6, "dependency_behavior": 0.5}, "impact": "high", "decision_relevance": 0.85, "status": "counterexample"}
+      ],
+      "counterexamples": [
+        {
+          "cx_id": "cx_2754e272039c",
+          "hazard_id": "hz_9cadbc1d6cc2bc52",
+          "candidate_digest": "mf_4c0a4e7b22a590db",
+          "template": "rate_balance_v1",
+          "state_slice_digest": "sha256:fixture-retry-spec",
+          "event_sequence": [
+            {"action": "create", "args": {"service": "demo-retry", "revision": "demo-retry-00008-fix", "seed": 271828, "spec": {"conn_leak_per_cycle": 0, "retry_p_f": 0.3, "retry_e_k": 4, "cred_ttl_s": 3600, "reuse_after_rotate_bug": false}}},
+            {"action": "dependency", "args": {"failure_rate": 0.2, "latency_ms": 0}},
+            {"action": "requests", "args": {"n": 100, "concurrency": 8}},
+            {"action": "requests", "args": {"n": 100, "concurrency": 8}},
+            {"action": "requests", "args": {"n": 100, "concurrency": 8}},
+            {"action": "requests", "args": {"n": 100, "concurrency": 8}}
+          ],
+          "expected_stable": {"queue_delta_per_round": {"median": 0.0, "mad": 0.0, "n": 4}, "m_below": 1.0, "source": "profile"},
+          "observed_candidate": {"queue_slope_per_request": {"slope": 0.24, "lo": 0.24, "hi": 0.24}, "m": 1.2, "final_counters": {"queue_depth": 96, "requests": 400, "retries": 96, "failures": 80}, "events_digest": "sha256:fixture-not-replayed", "divergence_event_seq": 3},
+          "first_divergence_age": {"cycles": 0, "requests": 100, "retries": 24, "cred_age_s": 0, "rotations": 0},
+          "replay_seed": 271828,
+          "replay_verified": true
+        }
+      ],
+      "envelopes": [
+        {
+          "type": "fastforward_result",
+          "scope": {"service": "demo-retry", "episode_id": "fx-ff-retry", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"outcome": "temporal_counterexample", "request_id": "ffr_fx_retry0000001", "episode_id": "fx-ff-retry", "service": "demo-retry", "hazards": [{"hazard_id": "hz_9cadbc1d6cc2bc52", "class": "rate_balance", "disposition": "counterexample", "mode": "probe"}], "fidelity": {"axes": {"input_shape": 0.7, "concurrency": 0.6, "clock_coverage": 0.5, "state_representativeness": 0.6, "dependency_behavior": 0.8, "side_effect_semantics": 1.0}, "aggregate": 0.69, "gates_met": true, "unsupported": []}, "budget": {"granted": {"max_probe_seconds": 120, "max_steps": 4}, "spent": {"probe_seconds": 1.8, "steps": 2}}, "plan_digest": "pd_fixtureretry0001", "counterexample_ids": ["cx_2754e272039c"]}
+        },
+        {
+          "type": "temporal_counterexample",
+          "scope": {"service": "demo-retry", "episode_id": "fx-ff-retry", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"cx_id": "cx_2754e272039c", "hazard_id": "hz_9cadbc1d6cc2bc52", "candidate_digest": "mf_4c0a4e7b22a590db", "template": "rate_balance_v1", "state_slice_digest": "sha256:fixture-retry-spec", "event_sequence": [{"action": "create", "args": {"service": "demo-retry", "revision": "demo-retry-00008-fix", "seed": 271828, "spec": {"conn_leak_per_cycle": 0, "retry_p_f": 0.3, "retry_e_k": 4, "cred_ttl_s": 3600, "reuse_after_rotate_bug": false}}}, {"action": "dependency", "args": {"failure_rate": 0.2, "latency_ms": 0}}, {"action": "requests", "args": {"n": 100, "concurrency": 8}}, {"action": "requests", "args": {"n": 100, "concurrency": 8}}, {"action": "requests", "args": {"n": 100, "concurrency": 8}}, {"action": "requests", "args": {"n": 100, "concurrency": 8}}], "expected_stable": {"queue_delta_per_round": {"median": 0.0, "mad": 0.0, "n": 4}, "m_below": 1.0, "source": "profile"}, "observed_candidate": {"queue_slope_per_request": {"slope": 0.24, "lo": 0.24, "hi": 0.24}, "m": 1.2, "final_counters": {"queue_depth": 96, "requests": 400, "retries": 96, "failures": 80}, "events_digest": "sha256:fixture-not-replayed", "divergence_event_seq": 3}, "first_divergence_age": {"cycles": 0, "requests": 100, "retries": 24, "cred_age_s": 0, "rotations": 0}, "replay_seed": 271828, "replay_verified": true}
+        }
+      ]
+    },
+    {
+      "request_id": "ffr_fx_cred00000001",
+      "episode_id": "fx-ff-cred",
+      "service": "demo-cred",
+      "state": "COUNTEREXAMPLE",
+      "outcome": "temporal_counterexample",
+      "deadline_s": 240,
+      "budget": {"max_probe_seconds": 120, "max_steps": 4},
+      "manifest": {"items": [{"kind": "dependency", "name": "auth-client", "from": "5.2", "to": "6.0"}]},
+      "snapshot": {"manifest_digest": "mf_a65b79d892f7c3b1", "policy_context": null, "profile_ids": [], "inventory": {"modes": ["signal", "probe"]}, "seed": 161803, "plan_digest": "pd_fixturecred0001", "mode": "full"},
+      "hazards": [
+        {"hazard_id": "hz_fbd2ac86e8a35bc4", "class": "clock_expiry", "source": "floor", "features": ["dep-class:auth"], "age_dimensions": ["expiry_events", "connection_cycles"], "expected_symptom": "stale_credential_reuse_after_rotation", "experiments": ["probe:cred_lifecycle_v1"], "min_fidelity": {"clock_coverage": 0.5, "dependency_behavior": 0.5}, "impact": "high", "decision_relevance": 0.9, "status": "counterexample"}
+      ],
+      "counterexamples": [
+        {
+          "cx_id": "cx_a09c4e1292f8",
+          "hazard_id": "hz_fbd2ac86e8a35bc4",
+          "candidate_digest": "mf_a65b79d892f7c3b1",
+          "template": "cred_lifecycle_v1",
+          "state_slice_digest": "sha256:fixture-cred-spec",
+          "event_sequence": [
+            {"action": "create", "args": {"service": "demo-cred", "revision": "demo-cred-00008-fix", "seed": 161803, "spec": {"conn_leak_per_cycle": 0, "retry_p_f": 0.05, "retry_e_k": 1, "cred_ttl_s": 3600, "reuse_after_rotate_bug": true}}},
+            {"action": "cycle", "args": {"n": 50}},
+            {"action": "requests", "args": {"n": 20, "concurrency": 4}},
+            {"action": "advance", "args": {"axis": "cred_age_s", "amount": 3660}},
+            {"action": "rotate_key", "args": {}},
+            {"action": "refresh_fault", "args": {"transient": true}},
+            {"action": "requests", "args": {"n": 20, "concurrency": 4}},
+            {"action": "requests", "args": {"n": 20, "concurrency": 4}}
+          ],
+          "expected_stable": {"stale_reuse_count": 0, "refresh_failures_max": 1, "recovery": "re-authenticate after rotation+expiry"},
+          "observed_candidate": {"final_counters": {"stale_reuse_count": 2, "failures": 40, "requests": 60, "rotations": 1}, "events_digest": "sha256:fixture-not-replayed", "stale_event_seq": 7},
+          "first_divergence_age": {"cycles": 50, "requests": 40, "retries": 0, "cred_age_s": 3660, "rotations": 1},
+          "replay_seed": 161803,
+          "replay_verified": true
+        }
+      ],
+      "envelopes": [
+        {
+          "type": "fastforward_result",
+          "scope": {"service": "demo-cred", "episode_id": "fx-ff-cred", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"outcome": "temporal_counterexample", "request_id": "ffr_fx_cred00000001", "episode_id": "fx-ff-cred", "service": "demo-cred", "hazards": [{"hazard_id": "hz_fbd2ac86e8a35bc4", "class": "clock_expiry", "disposition": "counterexample", "mode": "probe"}], "fidelity": {"axes": {"input_shape": 0.7, "concurrency": 0.6, "clock_coverage": 0.5, "state_representativeness": 0.6, "dependency_behavior": 0.8, "side_effect_semantics": 1.0}, "aggregate": 0.69, "gates_met": true, "unsupported": []}, "budget": {"granted": {"max_probe_seconds": 120, "max_steps": 4}, "spent": {"probe_seconds": 0.9, "steps": 1}}, "plan_digest": "pd_fixturecred0001", "counterexample_ids": ["cx_a09c4e1292f8"]}
+        },
+        {
+          "type": "temporal_counterexample",
+          "scope": {"service": "demo-cred", "episode_id": "fx-ff-cred", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"cx_id": "cx_a09c4e1292f8", "hazard_id": "hz_fbd2ac86e8a35bc4", "candidate_digest": "mf_a65b79d892f7c3b1", "template": "cred_lifecycle_v1", "state_slice_digest": "sha256:fixture-cred-spec", "event_sequence": [{"action": "create", "args": {"service": "demo-cred", "revision": "demo-cred-00008-fix", "seed": 161803, "spec": {"conn_leak_per_cycle": 0, "retry_p_f": 0.05, "retry_e_k": 1, "cred_ttl_s": 3600, "reuse_after_rotate_bug": true}}}, {"action": "cycle", "args": {"n": 50}}, {"action": "requests", "args": {"n": 20, "concurrency": 4}}, {"action": "advance", "args": {"axis": "cred_age_s", "amount": 3660}}, {"action": "rotate_key", "args": {}}, {"action": "refresh_fault", "args": {"transient": true}}, {"action": "requests", "args": {"n": 20, "concurrency": 4}}, {"action": "requests", "args": {"n": 20, "concurrency": 4}}], "expected_stable": {"stale_reuse_count": 0, "refresh_failures_max": 1, "recovery": "re-authenticate after rotation+expiry"}, "observed_candidate": {"final_counters": {"stale_reuse_count": 2, "failures": 40, "requests": 60, "rotations": 1}, "events_digest": "sha256:fixture-not-replayed", "stale_event_seq": 7}, "first_divergence_age": {"cycles": 50, "requests": 40, "retries": 0, "cred_age_s": 3660, "rotations": 1}, "replay_seed": 161803, "replay_verified": true}
+        }
+      ]
+    },
+    {
+      "request_id": "ffr_fx_healthy00001",
+      "episode_id": "fx-ff-healthy",
+      "service": "demo-healthy",
+      "state": "COMPLETED",
+      "outcome": "no_material_temporal_hazard",
+      "deadline_s": 240,
+      "budget": {"max_probe_seconds": 120, "max_steps": 4},
+      "manifest": {"items": [{"kind": "code", "name": "render-refactor", "paths": ["handlers/render.py"]}]},
+      "snapshot": {"manifest_digest": "mf_29e630660abb794e", "policy_context": null, "profile_ids": [], "inventory": {"modes": ["signal", "probe"]}, "seed": 141421, "plan_digest": "pd_fixturehealthy1", "mode": "full"},
+      "hazards": [],
+      "counterexamples": [],
+      "envelopes": [
+        {
+          "type": "fastforward_result",
+          "scope": {"service": "demo-healthy", "episode_id": "fx-ff-healthy", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"outcome": "no_material_temporal_hazard", "request_id": "ffr_fx_healthy00001", "episode_id": "fx-ff-healthy", "service": "demo-healthy", "hazards": [], "fidelity": {}, "budget": {"granted": {"max_probe_seconds": 120, "max_steps": 4}, "spent": {"probe_seconds": 0.0, "steps": 0}}, "plan_digest": "pd_fixturehealthy1", "counterexample_ids": []}
+        }
+      ]
+    },
+    {
+      "request_id": "ffr_fx_budget000001",
+      "episode_id": "fx-ff-budget",
+      "service": "demo-leak",
+      "state": "BUDGET_EXHAUSTED",
+      "outcome": "inconclusive_budget",
+      "deadline_s": 240,
+      "budget": {"max_probe_seconds": 0, "max_steps": 1},
+      "manifest": {"items": [{"kind": "dependency", "name": "pg-pool", "from": "2.1.0", "to": "3.0.0"}]},
+      "snapshot": {"manifest_digest": "mf_de8fff0006cc174e", "policy_context": null, "profile_ids": [], "inventory": {"modes": ["signal", "probe"]}, "seed": 173205, "plan_digest": "pd_fixturebudget01", "mode": "full"},
+      "hazards": [
+        {"hazard_id": "hz_2666075f8cb88f91", "class": "resource_lifecycle", "source": "floor", "features": ["dep-class:pool"], "age_dimensions": ["connection_cycles", "requests"], "expected_symptom": "positive_persistent_growth:open_handles", "experiments": ["signal:growth_projection", "probe:resource_lifecycle_v1"], "min_fidelity": {"input_shape": 0.6, "state_representativeness": 0.3}, "impact": "high", "decision_relevance": 0.9, "status": "inconclusive_budget"}
+      ],
+      "counterexamples": [],
+      "envelopes": [
+        {
+          "type": "fastforward_result",
+          "scope": {"service": "demo-leak", "episode_id": "fx-ff-budget", "stage": "T+30"},
+          "ttl_seconds": 604800,
+          "payload": {"outcome": "inconclusive_budget", "request_id": "ffr_fx_budget000001", "episode_id": "fx-ff-budget", "service": "demo-leak", "hazards": [{"hazard_id": "hz_2666075f8cb88f91", "class": "resource_lifecycle", "disposition": "inconclusive_budget", "mode": "probe"}], "fidelity": {}, "budget": {"granted": {"max_probe_seconds": 0, "max_steps": 1}, "spent": {"probe_seconds": 0.0, "steps": 1}}, "plan_digest": "pd_fixturebudget01", "counterexample_ids": []}
+        }
+      ]
+    }
+  ]
+}

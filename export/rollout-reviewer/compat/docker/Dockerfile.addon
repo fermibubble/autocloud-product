@@ -1,0 +1,30 @@
+# ---- Trustworthy Rollout Reviewer addon ------------------------------------
+# Append these lines to the harness Dockerfile (after the uv install step),
+# and build with an extra named context:
+#
+#   docker buildx build \
+#     --build-context third_party_skills_ctx=<export>/skill \
+#     --build-context rollout_reviewer=<export> \
+#     -t harness:with-trustworthy-review .
+#
+# The servers require Python >=3.12; the image ships 3.10/3.11, so uv
+# installs and caches a managed 3.12 interpreter at build time.
+
+# The full export lands at /opt/rollout-reviewer (servers, sim, schemas,
+# scripts, skill, examples, compat).
+COPY --from=rollout_reviewer . /opt/rollout-reviewer/
+
+RUN uv python install 3.12 \
+    && cd /opt/rollout-reviewer/servers/rollout-intel && uv sync --frozen \
+    && cd /opt/rollout-reviewer/servers/gcp-observe && uv sync --frozen \
+    && chmod +x /opt/rollout-reviewer/scripts/*.sh \
+    && cp /opt/rollout-reviewer/compat/docker/entrypoint-addon.sh /usr/local/bin/entrypoint-addon.sh \
+    && chmod +x /usr/local/bin/entrypoint-addon.sh
+
+# rollout-intel MCP/REST, gcp-observe MCP/bundle, sim GCP-API/world
+EXPOSE 7610 7611 7600 7601 7620 7621
+
+# The wrapper starts the reviewer stack, then execs the original
+# entrypoint_sandbox.sh unchanged (Chrome + mcp-proxy behavior intact).
+CMD ["/usr/local/bin/entrypoint-addon.sh"]
+# ---- end addon -------------------------------------------------------------

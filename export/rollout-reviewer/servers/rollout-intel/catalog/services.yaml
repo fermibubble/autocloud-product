@@ -1,0 +1,35 @@
+# Canonical service identity (research §4): the catalog is the authoritative
+# source; anything not listed here resolves as an inferred CANDIDATE and is
+# visibly non-authoritative in every context pack.
+services:
+  - tenant: autocloud
+    name: demo-healthy
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: platform-sre
+
+  - tenant: autocloud
+    name: demo-latency
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: platform-sre
+
+  - tenant: autocloud
+    name: demo-errors
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: payments-sre
+
+  - tenant: autocloud
+    name: demo-thin
+    environment: prod
+    region: us-central1
+    runtime: cloud-run
+    architecture_version: v1
+    owner: platform-sre

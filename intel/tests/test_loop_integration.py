@@ -64,6 +64,20 @@ def bundle_from_world(world: gcp_sim.World, service: str, stage: str) -> list[di
             "log_scan", {"service": service},
             {"query": "severity>=ERROR", "entries": world.log_entries(service, 20)},
             {"entry_count": len(world.log_entries(service, 20))}))
+    if stage == "T+30":
+        # Policy v2: the decision stage needs temporal fast-forward
+        # evidence — mirror the FF result-envelope pull run_stage_checks
+        # does when FF_API is set (benign outcome for these fixtures).
+        envs.append(minting.mint(
+            "fastforward_result",
+            {"service": service, "episode_id": "ep-test", "stage": "T+30"},
+            {"outcome": "no_material_temporal_hazard", "request_id": "ffr-test",
+             "episode_id": "ep-test", "service": service, "hazards": [],
+             "fidelity": {"axes": {}, "aggregate": 1.0, "gates_met": True,
+                          "unsupported": []},
+             "budget": {"granted": {}, "spent": {}}, "plan_digest": "",
+             "counterexample_ids": []},
+            source="rollout-fastforward", ttl_seconds=86400))
     return envs
 
 
@@ -175,9 +189,11 @@ def test_architecture_change_via_deploy_event_expires_sensitive_claims(world, in
     assert episode["architecture_version"] == "v2"
 
 
-def test_governed_window_ends_ladder_early(world, intel):
-    """Dynamic scheduling: an OBSERVED stabilization window of 15 minutes
-    ends the ladder at T+15 (3 checkpoints); an ASSERTED window must not."""
+def test_governed_window_never_skips_t30_temporal_rule(world, intel):
+    """Dynamic scheduling under policy v2: even an OBSERVED stabilization
+    window of 15 minutes must not end the ladder at T+15 — the T+30-only
+    temporal-evidence rule raises the full-coverage floor to 30, so the
+    ladder runs to its natural end. An ASSERTED window changes nothing."""
     uid = "svc://autocloud/demo-healthy/prod/us-central1"
     rev = intel.dossiers.propose(uid, "stabilization_window_minutes", 15, "asserted",
                                  agent_originated=False)
@@ -187,9 +203,17 @@ def test_governed_window_ends_ladder_early(world, intel):
     episode = intel.create_episode(event)
     for stage in ("T+0", "T+5", "T+15"):
         intel.open_checkpoint(episode["episode_id"], stage, f"ses_{stage}")
-        intel.run_stage_checks(episode["episode_id"], stage)
-        result = intel.record(episode["episode_id"], stage, [], "healthy", "ok", "# r", [], [])
+        envs = bundle_from_world(world, "demo-healthy", stage)
+        result = intel.record(episode["episode_id"], stage, envs, "healthy",
+                              "ok", "# r", [], [])
         assert "error" not in result, result
+    # The governed window (15) is outranked by the coverage floor (30).
+    assert result["next_check_at"] == "+15m"
+    intel.open_checkpoint(episode["episode_id"], "T+30", "ses_T+30")
+    envs = bundle_from_world(world, "demo-healthy", "T+30")
+    result = intel.record(episode["episode_id"], "T+30", envs, "healthy",
+                          "ok", "# r", [], [])
+    assert "error" not in result, result
     assert result["next_check_at"] is None
     row = intel.db.one("SELECT status, final_verdict FROM episodes WHERE episode_id=?",
                        (episode["episode_id"],))
