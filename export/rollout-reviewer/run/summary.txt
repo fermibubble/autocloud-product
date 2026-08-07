@@ -1,1 +1,0 @@
-verdict=regression-suspected confidence=medium - mechanical tighten-consistent mapping of the deterministic policy result (smoke test). Top check: partition the failing signal vs baseline. Unknowns: 1. Full epistemic record embedded in report_md.

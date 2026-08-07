@@ -13,3 +13,5 @@ sim/__pycache__/
 !export/**/uv.lock
 # Recorded eval artifacts are part of the results, including the episode store
 !experimental/results/**/*.db
+# Runtime scratch from run-stack.sh sessions
+export/rollout-reviewer/run/
