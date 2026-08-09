@@ -188,9 +188,19 @@ the module creates and writes only its own dataset.
   `mode=ro` and imports google-cloud-bigquery lazily, so it runs in the
   Cloud Run router (no rollout_intel install needed), on the agent VM,
   or in a batch job.
-- `export_episode` raises `LookupError` for a mid-ladder episode — the
-  router calls it after every rollout-reviewer turn and simply skips
-  that case; only the ladder-end turn actually uploads.
+- Failure taxonomy the caller relies on: `NotFinishedError` — the
+  normal mid-ladder skip (the router calls the export after every
+  rollout-reviewer turn; only the ladder-end turn uploads);
+  `UnknownEpisodeError` — a correlation mismatch or wrong store, NEVER
+  a normal skip (fall back to `find_finished_episodes`); `RuntimeError`
+  — BigQuery rejected rows: retry the export (safe — duplicates are
+  snapshot noise the views ignore, and the `episodes` commit marker
+  is inserted LAST, so `*_latest` never advertises a torn phase).
+- **Pre-create the dataset at deploy time** (run
+  `ensure_dataset_and_tables` + the view setup below once): streaming
+  inserts into a just-created table can 404 for a short window. The
+  exporter also retries those with backoff, but deploy-time creation
+  removes the window entirely.
 
 **Suggested event-router patch** (vendor `bq_export.py` and
 `session_db.py` next to `review_design.py`; add near the other env
@@ -203,26 +213,40 @@ import bq_export      # pylint: disable=g-import-not-at-top
 import session_db     # pylint: disable=g-import-not-at-top
 ```
 
-and in `handle_event`, after the streaming loop finished (anywhere
-`status`, `data`, `insert_id`, and `session_id` are in scope — e.g.
-just before the existing agent_executions upload):
+and in `handle_event`, after the streaming loop finished. Scope
+preconditions: `target_template`, `status`, `data`, `insert_id`,
+`session_id`, `get_bq_client`, `deidentify_content`, and
+`deidentify_json_structure` must all be in scope (they are, just
+before the existing agent_executions upload). The ENTIRE block —
+including the guards — sits inside the try: nothing here may ever fail
+the event.
 
 ```python
   # Export the finished rollout episode to the dedicated dataset.
-  if target_template == "rollout-reviewer" and status == "SUCCESS":
-    intel_bq = get_bq_client()
-    if intel_bq:
-      try:
+  try:
+    if target_template == "rollout-reviewer" and status == "SUCCESS":
+      intel_bq = get_bq_client()
+      if intel_bq:
         store = session_db.SessionStore(session_id)
         local_db = store.mount()  # read-only use: never persist() here
         is_deferred = (
             isinstance(data, dict) and data.get("type") == "deferred_check"
         )
-        ref = (data.get("unique_id") if is_deferred else insert_id) or None
+        # IMPORTANT: the ref must be what the store bound the episode
+        # to — insertId, falling back to the event's top-level "id"
+        # (triggers.external_ref's exact fallback chain). Events with
+        # neither got a SYNTHESIZED ref, which this router cannot
+        # recompute — the find_finished fallback below covers them.
+        ref = (
+            data.get("unique_id") if is_deferred
+            else (insert_id
+                  or (data.get("id") if isinstance(data, dict) else None))
+        ) or None
         episode_ids = (
             [bq_export.episode_id_for_ref(ref)]
             if ref
-            else bq_export.find_finished_episodes(local_db)
+            else bq_export.find_finished_episodes(
+                local_db, for_phase="ladder_complete")
         )
         for episode_id in episode_ids:
           try:
@@ -238,12 +262,29 @@ just before the existing agent_executions upload):
                 scrub_json=deidentify_json_structure,
             )
             print(f"rollout-intel BQ export {episode_id}: {summary}")
-          except LookupError as e:
+          except bq_export.NotFinishedError as e:
             # Mid-ladder turn: nothing to export yet. Normal.
             print(f"rollout-intel BQ export skipped: {e}")
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        # Export problems must never fail the event.
-        print(f"WARNING: rollout-intel BQ export failed: {e}")
+          except bq_export.UnknownEpisodeError as e:
+            # Ref mismatch / wrong store: NOT normal. Export whatever
+            # actually finished so nothing is silently lost.
+            print(f"WARNING: rollout-intel BQ export ref mismatch: {e}")
+            for fallback_id in bq_export.find_finished_episodes(
+                local_db, for_phase="ladder_complete"):
+              summary = bq_export.export_episode(
+                  local_db, episode_id=fallback_id,
+                  phase="ladder_complete", project=intel_bq.project,
+                  dataset=INTEL_BQ_DATASET, client=intel_bq,
+                  export_session=session_id,
+                  scrub_text=deidentify_content,
+                  scrub_json=deidentify_json_structure)
+              print(f"rollout-intel BQ export {fallback_id}: {summary}")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    # Export problems must never fail the event. A RuntimeError here
+    # means BigQuery rejected rows: safe to retry — consider
+    # re-enqueueing via trigger_self_async() or alerting on this log
+    # line rather than only printing.
+    print(f"WARNING: rollout-intel BQ export failed: {e}")
 ```
 
 **Phase 2 — after outcome labeling**: wherever your ground truth posts

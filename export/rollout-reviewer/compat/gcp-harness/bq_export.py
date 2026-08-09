@@ -5,47 +5,95 @@ criteria, or a governed window - and later again when the outcome label
 lands) the episode store's rows for that episode are appended to a
 DEDICATED BigQuery dataset. The existing harness dataset
 (autocloud_analysis.agent_executions) is never touched: this module
-creates and writes only its own dataset/tables.
+creates and writes only its own labeled dataset, refuses known harness
+dataset names outright, and refuses to write into any pre-existing
+dataset it did not create.
 
 Design:
   - Stdlib SQLite reads (no rollout_intel import): the module runs
     anywhere the .db file can be mounted - the Cloud Run event router,
-    the agent VM, or a batch job. google-cloud-bigquery is imported
-    lazily and only for the actual upload.
-  - APPEND-ONLY snapshots: every exported row carries exported_at,
-    export_phase ('ladder_complete' | 'outcome_final' | ...), and
-    export_session. At-least-once delivery and the two-phase export
-    (ladder end, then outcome labeling) produce duplicate snapshots by
-    design; analysts read through the *_latest views (see
-    LATEST_VIEW_SQL) which keep the newest snapshot per primary key.
-    Deterministic per-phase row ids are passed for BigQuery's
-    best-effort short-window dedupe.
+    the agent VM, or a batch job. The store opens read-only and, by
+    default, immutable=1 (a mounted quiescent copy): SQLite then
+    creates no -wal/-shm coordination files at all. Pass
+    immutable=False only when reading a live store that may hold
+    unmerged WAL pages. google-cloud-bigquery is imported lazily and
+    only for the actual upload.
+  - APPEND-ONLY snapshots: every exported row carries exported_at
+    (microsecond precision), export_phase ('ladder_complete' |
+    'outcome_final' | ...), and export_session. At-least-once delivery
+    and the two-phase export produce duplicate snapshots by design;
+    analysts read through the *_latest views (LATEST_VIEW_SQL - newest
+    snapshot per primary key, outcome_final outranking ladder_complete
+    on timestamp ties). Content-hashed row ids let BigQuery's
+    short-window best-effort dedupe absorb identical retries without
+    ever suppressing a changed snapshot.
+  - Torn-snapshot guard: the episodes table is inserted LAST, as the
+    commit marker - episodes_latest only advertises a phase once every
+    other table's rows for that phase landed. A partial failure raises
+    RuntimeError naming what did and did not land; the caller retries
+    (re-exporting already-landed tables is harmless snapshot noise).
   - Column names and stored bytes match the SQLite schema exactly
     (…_json columns upload as BigQuery JSON, timestamps as TIMESTAMP);
     the one addition is decisions.episode_id, derived via checkpoints
     so per-episode queries need no join.
-  - Scrubbing: pass the harness's DLP hooks - scrub_text(str)->str for
-    free-text columns (report_md, notes, rationale, principals),
-    scrub_json(obj)->obj for every *_json column. No hooks = no
-    scrubbing; the router patch always passes them.
-  - Finished-only by default: an episode exports once its ladder ended
-    (final_verdict set / status awaiting_outcome|closed). Mid-ladder
-    episodes raise LookupError so a router can call this after every
-    turn and simply skip the not-finished case. force=True overrides.
+  - Scrubbing: pass BOTH hooks or neither - scrub_text(str)->str for
+    free-text columns, scrub_json(obj)->obj for parsed *_json values.
+    A stored value that is not valid JSON (the recorder never gates)
+    is exported as a JSON STRING LITERAL of its scrubbed text - always
+    valid for a JSON column, never a poison pill. A scrub_json hook
+    that RAISES fails closed for that value (NULL + counted in the
+    summary) - unscrubbed structure is never exported by accident.
+  - Finished-only by default: NotFinishedError (mid-ladder; callers
+    skip it) vs UnknownEpisodeError (ref mismatch; callers must NOT
+    treat it as normal - the episode exists under a different ref, or
+    the wrong store is mounted). Both subclass LookupError.
 """
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import hashlib
 import json
 import sqlite3
+import time
 from typing import Any, Callable
 
 DEFAULT_DATASET = "autocloud_rollout_intel"
 
+# Known harness datasets this module must never write to, regardless of
+# configuration mistakes.
+_DATASET_DENYLIST = {"autocloud_analysis"}
+
+# Datasets this module creates are labeled; a pre-existing dataset
+# without the label is someone else's data and is refused.
+_OWNER_LABEL_KEY = "created_by"
+_OWNER_LABEL_VALUE = "rollout-intel-bq-export"
+
 _FINISHED_SQL = ("final_verdict IS NOT NULL "
                  "OR status IN ('awaiting_outcome', 'closed')")
+
+# Backoff schedule for streaming inserts into a just-created table
+# (tabledata.insertAll can 404 / report tableUnavailable for a short
+# window after table creation).
+_INSERT_RETRY_SLEEPS = (5, 10, 20, 40)
+_RETRIABLE_ROW_REASONS = {"notFound", "tableUnavailable", "backendError"}
+
+
+class UnknownEpisodeError(LookupError):
+    """No episode row for this id/ref - a correlation mismatch or the
+    wrong session store; NOT a normal skip."""
+
+
+class NotFinishedError(LookupError):
+    """The episode's ladder has not ended yet - the normal mid-ladder
+    skip for callers that export after every turn."""
+
+
+class SchemaDriftError(RuntimeError):
+    """A live table's column types conflict with this module's schema -
+    refusing to insert rather than corrupt or silently fail."""
+
 
 # table -> (primary key, ordered columns). Columns mirror
 # rollout_intel/models.py byte-for-byte; keep the twins in sync.
@@ -88,6 +136,11 @@ _TABLES: dict[str, tuple[str, list[str]]] = {
         "returned_ids_json", "as_of", "at"]),
 }
 
+# Insert order: episodes LAST - its snapshot is the phase's commit
+# marker, so episodes_latest never advertises a phase whose other
+# tables did not land.
+_INSERT_ORDER = [t for t in _TABLES if t != "episodes"] + ["episodes"]
+
 _BQ_TABLE_PREFIX = "rollout_"
 
 _TIMESTAMP_COLS = {
@@ -107,10 +160,15 @@ _SCRUB_TEXT_COLS = {"report_md", "notes", "rationale", "actor", "owner",
 _EXPORT_COLS = ["exported_at", "export_phase", "export_session"]
 
 LATEST_VIEW_SQL = """-- One view per table: the newest snapshot per primary key.
+-- Tiebreakers: outcome_final outranks ladder_complete at equal
+-- timestamps; export_session makes the order fully deterministic.
 CREATE OR REPLACE VIEW `{project}.{dataset}.{table}_latest` AS
 SELECT * EXCEPT (rn) FROM (
   SELECT *, ROW_NUMBER() OVER (
-    PARTITION BY {pk} ORDER BY exported_at DESC) AS rn
+    PARTITION BY {pk}
+    ORDER BY exported_at DESC,
+             IF(export_phase = 'outcome_final', 1, 0) DESC,
+             export_session DESC) AS rn
   FROM `{project}.{dataset}.{table}`)
 WHERE rn = 1;
 """
@@ -147,8 +205,24 @@ def bq_schema(table: str) -> list[dict]:
     return fields
 
 
+def schema_drift(live_fields: list[tuple[str, str]],
+                 table: str) -> tuple[list[dict], list[str]]:
+    """Compare a live table's (name, type) fields against this module's
+    schema. Returns (missing_fields_to_append, type_conflicts). Extra
+    live columns are fine; missing ones are additive-appendable; a
+    same-name different-type column is a conflict."""
+    wanted = {f["name"]: f for f in bq_schema(table)}
+    live = {name: str(bq_type).upper() for name, bq_type in live_fields}
+    missing = [dict(f, mode="NULLABLE") for name, f in wanted.items()
+               if name not in live]
+    conflicts = [f"{name}: live {live[name]} vs expected {f['type']}"
+                 for name, f in wanted.items()
+                 if name in live and live[name] != f["type"]]
+    return missing, conflicts
+
+
 def _ts(value):
-    """ISO-Z strings pass through for TIMESTAMP columns; anything
+    """ISO strings pass through for TIMESTAMP columns; anything
     unparseable becomes NULL rather than failing the row."""
     if value in (None, ""):
         return None
@@ -159,40 +233,57 @@ def _ts(value):
         return None
 
 
-def _connect(db_path: str) -> sqlite3.Connection:
-    # Read-only URI: the exporter must never create or mutate a store.
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+def _connect(db_path: str, immutable: bool = True) -> sqlite3.Connection:
+    # Read-only; immutable=1 additionally guarantees SQLite creates no
+    # -wal/-shm files next to a mounted copy (plain mode=ro may).
+    uri = (f"file:{db_path}?immutable=1" if immutable
+           else f"file:{db_path}?mode=ro")
+    conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def find_finished_episodes(db_path: str) -> list[str]:
-    with _connect(db_path) as conn:
+def find_finished_episodes(db_path: str, for_phase: str | None = None,
+                           immutable: bool = True) -> list[str]:
+    """Finished episodes, optionally narrowed to a phase:
+    'ladder_complete' -> finished but not yet labeled (what a
+    ladder-end fallback should export); 'outcome_final' -> labeled.
+    None -> all finished."""
+    where = _FINISHED_SQL
+    if for_phase == "ladder_complete":
+        where = f"({_FINISHED_SQL}) AND final_label IS NULL"
+    elif for_phase == "outcome_final":
+        where = "final_label IS NOT NULL"
+    with contextlib.closing(_connect(db_path, immutable)) as conn:
         rows = conn.execute(
-            f"SELECT episode_id FROM episodes WHERE {_FINISHED_SQL} "
+            f"SELECT episode_id FROM episodes WHERE {where} "
             "ORDER BY created_at, episode_id").fetchall()
     return [r["episode_id"] for r in rows]
 
 
 def collect_episode_rows(db_path: str, episode_id: str, *,
-                         force: bool = False) -> dict[str, list[dict]]:
+                         force: bool = False,
+                         immutable: bool = True) -> dict[str, list[dict]]:
     """All rows belonging to one episode, keyed by (sqlite) table name.
 
-    Raises LookupError when the episode is unknown, or (unless force)
-    when its ladder has not ended - callers invoke this after every
-    turn and skip the mid-ladder case.
+    Raises UnknownEpisodeError when no such episode exists (a ref
+    mismatch or wrong store - never a normal skip), NotFinishedError
+    (unless force) when its ladder has not ended.
     """
-    with _connect(db_path) as conn:
+    with contextlib.closing(_connect(db_path, immutable)) as conn:
         episode = conn.execute(
             "SELECT * FROM episodes WHERE episode_id = ?",
             (episode_id,)).fetchone()
         if episode is None:
-            raise LookupError(f"unknown episode {episode_id!r}")
+            raise UnknownEpisodeError(
+                f"unknown episode {episode_id!r} on this store - the "
+                "correlation ref does not match, or the wrong session "
+                "store is mounted")
         finished = conn.execute(
             f"SELECT 1 FROM episodes WHERE episode_id = ? AND ({_FINISHED_SQL})",
             (episode_id,)).fetchone() is not None
         if not (finished or force):
-            raise LookupError(
+            raise NotFinishedError(
                 f"episode {episode_id} has not finished its ladder yet "
                 "(no final verdict); pass force=True to export anyway")
 
@@ -235,21 +326,41 @@ def collect_episode_rows(db_path: str, episode_id: str, *,
 def _prepare(table: str, raw: dict, exported_at: str, phase: str,
              export_session: str,
              scrub_text: Callable[[str], str] | None,
-             scrub_json: Callable[[Any], Any] | None) -> dict:
-    _, cols = _TABLES[table]
+             scrub_json: Callable[[Any], Any] | None,
+             stats: dict[str, int]) -> dict:
+    pk, cols = _TABLES[table]
     row: dict[str, Any] = {}
     for col in cols:
         value = raw.get(col)
         if value is not None and col in _SCRUB_TEXT_COLS and scrub_text:
             value = scrub_text(str(value))
         if col.endswith("_json"):
-            if value is not None and scrub_json is not None:
+            if value is not None:
                 try:
-                    value = json.dumps(scrub_json(json.loads(value)))
-                except ValueError:
-                    # Recorder-never-gates means a stored payload is not
-                    # guaranteed parseable; scrub it as plain text.
-                    value = scrub_text(str(value)) if scrub_text else value
+                    parsed = json.loads(value)
+                except (ValueError, TypeError):
+                    # Recorder-never-gates: a stored payload is not
+                    # guaranteed parseable. Export the scrubbed text as
+                    # a JSON STRING LITERAL - always valid for a JSON
+                    # column, never a poison pill.
+                    stats["unparseable_json"] = (
+                        stats.get("unparseable_json", 0) + 1)
+                    text = scrub_text(str(value)) if scrub_text else str(value)
+                    value = json.dumps(text)
+                else:
+                    if scrub_json is not None:
+                        try:
+                            value = json.dumps(scrub_json(parsed))
+                        except Exception:  # noqa: BLE001 - fail CLOSED
+                            # The structural scrubber failed on this
+                            # value: never export it unscrubbed, never
+                            # substitute a weaker scrubber silently.
+                            stats["scrub_failures"] = (
+                                stats.get("scrub_failures", 0) + 1)
+                            print(f"WARNING: scrub_json failed for "
+                                  f"{table}.{col} pk={raw.get(pk)!r}; "
+                                  "exporting NULL for this value")
+                            value = None
             # JSON columns take a JSON-formatted string verbatim.
         elif col in _TIMESTAMP_COLS:
             value = _ts(value)
@@ -260,25 +371,68 @@ def _prepare(table: str, raw: dict, exported_at: str, phase: str,
     return row
 
 
+def _row_id(phase: str, pk_value: Any, row: dict) -> str:
+    """Content-hashed: identical retries dedupe inside BigQuery's
+    best-effort window; a CHANGED same-phase snapshot never does."""
+    digest = hashlib.sha256(
+        json.dumps(row, sort_keys=True, default=str).encode()
+    ).hexdigest()[:12]
+    return f"{phase}:{pk_value}:{digest}"
+
+
+def _check_dataset_name(dataset: str) -> None:
+    if dataset in _DATASET_DENYLIST:
+        raise ValueError(
+            f"dataset {dataset!r} is a harness dataset this exporter must "
+            "never write to; use the dedicated dataset "
+            f"(default {DEFAULT_DATASET!r})")
+
+
 def ensure_dataset_and_tables(client, project: str,
                               dataset: str = DEFAULT_DATASET,
                               location: str = "US") -> None:
-    """Idempotently create the dedicated dataset and its tables. Existing
-    datasets/tables are left exactly as they are - this module never
-    alters anything pre-existing."""
+    """Idempotently create the dedicated, labeled dataset and its
+    tables. A pre-existing dataset NOT carrying this module's ownership
+    label is refused - never written into, never altered. A live table
+    missing columns (older module version) is additively extended
+    (append NULLABLE fields only); a type conflict raises
+    SchemaDriftError before any insert."""
     from google.cloud import bigquery
     from google.cloud.exceptions import NotFound
 
-    dataset_ref = bigquery.Dataset(f"{project}.{dataset}")
-    dataset_ref.location = location
+    _check_dataset_name(dataset)
+    dataset_id = f"{project}.{dataset}"
     try:
-        client.get_dataset(f"{project}.{dataset}")
+        existing = client.get_dataset(dataset_id)
+        labels = existing.labels or {}
+        if labels.get(_OWNER_LABEL_KEY) != _OWNER_LABEL_VALUE:
+            raise RuntimeError(
+                f"dataset {dataset_id} already exists and does not carry "
+                f"label {_OWNER_LABEL_KEY}={_OWNER_LABEL_VALUE} - refusing "
+                "to write into a dataset this exporter did not create. "
+                "Pick another dataset name, or add the label to adopt it "
+                "deliberately.")
     except NotFound:
+        dataset_ref = bigquery.Dataset(dataset_id)
+        dataset_ref.location = location
+        dataset_ref.labels = {_OWNER_LABEL_KEY: _OWNER_LABEL_VALUE}
         client.create_dataset(dataset_ref, exists_ok=True)
     for table in _TABLES:
         table_id = f"{project}.{dataset}.{_BQ_TABLE_PREFIX}{table}"
         try:
-            client.get_table(table_id)
+            live = client.get_table(table_id)
+            missing, conflicts = schema_drift(
+                [(f.name, f.field_type) for f in live.schema], table)
+            if conflicts:
+                raise SchemaDriftError(
+                    f"{table_id} has conflicting column types: "
+                    f"{'; '.join(conflicts)} - refusing to insert")
+            if missing:
+                # Additive only: appended NULLABLE columns never touch
+                # pre-existing data.
+                live.schema = list(live.schema) + [
+                    bigquery.SchemaField.from_api_repr(f) for f in missing]
+                client.update_table(live, ["schema"])
         except NotFound:
             schema = [bigquery.SchemaField.from_api_repr(f)
                       for f in bq_schema(table)]
@@ -286,6 +440,31 @@ def ensure_dataset_and_tables(client, project: str,
             bq_table.time_partitioning = bigquery.TimePartitioning(
                 field="exported_at")
             client.create_table(bq_table, exists_ok=True)
+
+
+def _insert_with_retry(client, table_id: str, rows: list[dict],
+                       row_ids: list[str]) -> list:
+    """Streaming inserts into a just-created table can 404 or report
+    tableUnavailable for a short window; retry those with backoff.
+    Non-retriable row errors return immediately."""
+    attempts = (0,) + _INSERT_RETRY_SLEEPS
+    errors: list = []
+    for i, sleep_s in enumerate(attempts):
+        if sleep_s:
+            time.sleep(sleep_s)
+        try:
+            errors = client.insert_rows_json(table_id, rows, row_ids=row_ids)
+        except Exception as exc:  # noqa: BLE001 - typed check below
+            if type(exc).__name__ == "NotFound" and i < len(attempts) - 1:
+                continue
+            raise
+        if not errors:
+            return []
+        reasons = {e.get("reason", "") for err in errors
+                   for e in (err.get("errors") or [])}
+        if not (reasons & _RETRIABLE_ROW_REASONS) or i == len(attempts) - 1:
+            return errors
+    return errors
 
 
 def export_episode(db_path: str, *, phase: str,
@@ -299,19 +478,32 @@ def export_episode(db_path: str, *, phase: str,
                    scrub_json: Callable[[Any], Any] | None = None,
                    ensure_schema: bool = True,
                    force: bool = False,
+                   immutable: bool = True,
                    location: str = "US") -> dict:
     """Append one finished episode's rows to the dedicated dataset.
 
     Identify the episode by id or by the trigger correlation ref
-    (insertId / deferred unique_id). Returns {table: row_count}.
-    Raises LookupError for unknown/not-finished episodes (callers skip
-    the latter), RuntimeError when BigQuery rejects rows.
+    (insertId / deferred unique_id). Returns {table: row_count} plus
+    optional 'unparseable_json' / 'scrub_failures' counters.
+
+    Raises NotFinishedError (mid-ladder: skip and try again next turn),
+    UnknownEpisodeError (ref mismatch: NOT a normal skip - fall back to
+    find_finished_episodes or investigate), RuntimeError when BigQuery
+    rejects rows (the message names which tables landed; retrying the
+    whole export is safe - duplicates are snapshot noise the *_latest
+    views ignore, and the episodes commit marker only lands last).
     """
+    _check_dataset_name(dataset)
+    if (scrub_text is None) != (scrub_json is None):
+        raise ValueError(
+            "pass BOTH scrub_text and scrub_json, or neither - one hook "
+            "alone leaves either free text or JSON payloads unscrubbed")
     if episode_id is None:
         if not external_ref:
             raise ValueError("pass episode_id or external_ref")
         episode_id = episode_id_for_ref(external_ref)
-    collected = collect_episode_rows(db_path, episode_id, force=force)
+    collected = collect_episode_rows(db_path, episode_id, force=force,
+                                     immutable=immutable)
 
     if client is None:
         from google.cloud import bigquery
@@ -321,25 +513,28 @@ def export_episode(db_path: str, *, phase: str,
         ensure_dataset_and_tables(client, project, dataset, location)
 
     exported_at = datetime.datetime.now(
-        datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    stats: dict[str, int] = {}
     summary: dict[str, int] = {}
     failures: list[str] = []
-    for table, raw_rows in collected.items():
+    for table in _INSERT_ORDER:
+        raw_rows = collected.get(table) or []
         if not raw_rows:
             continue
         pk, _ = _TABLES[table]
         rows = [_prepare(table, r, exported_at, phase, export_session,
-                         scrub_text, scrub_json) for r in raw_rows]
-        # Deterministic per-phase ids: BigQuery's short-window best-effort
-        # dedupe absorbs immediate Cloud Tasks retries; the *_latest
-        # views handle everything beyond the window.
-        row_ids = [f"{phase}:{r[pk]}" for r in rows]
+                         scrub_text, scrub_json, stats) for r in raw_rows]
+        row_ids = [_row_id(phase, r[pk], r) for r in rows]
         table_id = f"{project}.{dataset}.{_BQ_TABLE_PREFIX}{table}"
-        errors = client.insert_rows_json(table_id, rows, row_ids=row_ids)
+        errors = _insert_with_retry(client, table_id, rows, row_ids)
         if errors:
             failures.append(f"{table_id}: {errors}")
         else:
             summary[table] = len(rows)
     if failures:
-        raise RuntimeError("BigQuery rejected rows: " + "; ".join(failures))
-    return summary
+        raise RuntimeError(
+            "BigQuery rejected rows: " + "; ".join(failures)
+            + f" (tables that DID land this attempt: {summary or 'none'}; "
+              "retry the export - the episodes commit marker lands last, "
+              "so *_latest never advertises this torn phase)")
+    return dict(summary, **stats)
