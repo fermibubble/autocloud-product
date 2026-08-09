@@ -94,23 +94,29 @@ the `rr` CLI:
 Your `defer_verification` (Cloud Tasks → Event Router → agent) IS the
 checkpoint clock. Two wiring points:
 
-- **Episode creation (once per deploy event):** where your Event Router
-  parses the triggering log event, add one sandbox call:
-  `rr new-episode --service <name> --project <p> --region <r>
-  --to-revision <rev> …` (or `compat/clouddeploy-to-episode.py
-  --from-json` for Cloud Deploy describe output). Capture the returned
-  `episode_id` into the prompt.
-- **Per checkpoint:** before each review session,
-  `rr open-checkpoint <episode> <stage>`; after the session records,
-  read `next_check_at` from the `rr record` response and defer the next
-  stage by exactly that delay via your existing queue — it already
-  reflects the policy's ladder, any agent proposal (the agent may pass
-  `--next-check-minutes`/`--next-check-reason`; tightening honored,
-  loosening clamped to policy bounds), and the exit criteria. A null
-  `next_check_at` means the ladder is closed — schedule outcomes, not
-  another session. Transitional mode (least rewiring): let the agent
-  itself call `defer_verification` — but only AFTER a successful
-  `rr record`, per `../LEGACY-COMPAT.md`.
+- **Episode creation (once per deploy event):** simplest is no Event
+  Router parsing at all — hand the raw audit-log entry to the session
+  and let its first action be `rr begin '<event JSON>'`: parsing
+  (platform-authoritative fields only), episode creation (deterministic
+  id from `insertId`, so redelivery dedupes), and opening the due
+  checkpoint happen server-side in one call. Driver-side alternative:
+  `POST /intel/triggers` with the raw event, or the older explicit
+  `rr new-episode --service <name> …` / `compat/clouddeploy-to-episode.py`.
+- **Per checkpoint:** the deferred task's payload
+  (`{"type": "deferred_check", "unique_id": <the trigger's insertId>}`)
+  goes to the session verbatim; `rr begin` resumes the right episode and
+  stage (or answers `ladder_complete`/`closed` for a late timer). After
+  the session records, the `rr record` response's `next_check` block is
+  what the agent arms `defer_verification(next_check.unique_id,
+  next_check.delay_seconds)` with — recorder-returned values, as its
+  LAST action, exactly once (see `SESSION-LIFECYCLE.md` §3 and the
+  skill's clock spec). It already reflects the policy's ladder, any agent
+  proposal (`--next-check-minutes`/`--next-check-reason`; tightening
+  honored, loosening clamped to policy bounds), and the exit criteria.
+  A null `next_check_at` means the ladder is closed — schedule
+  outcomes, not another session. If your session store lives in GCS
+  between checks, mount/persist it with `session_db.SessionStore`
+  (`SESSION-LIFECYCLE.md` §4).
 - **Outcomes:** at your chosen horizons (a deferred task works), post
   ground truth: `rr outcome <episode> --horizon 24h --final-label
   healthy|regressed|rolled_back --source collector` — from YOUR

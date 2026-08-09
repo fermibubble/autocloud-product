@@ -21,8 +21,12 @@ enters it; the relay owns the clock; humans own promotions and labels.
   outlive the session, no "remember this for next time" prose aimed at
   future sessions. Durable knowledge travels only as a dossier
   proposal (outcomes.md).
-- No self-scheduling: the relay decides when the next checkpoint
-  fires. You never defer, re-arm, or manage the ladder.
+- No self-scheduling: the clock layer decides when the next checkpoint
+  fires. Where the harness routes that clock through you - a deferral
+  tool you must call - you are the courier, not the clock: arm exactly
+  the recorder's `next_check` decision, once, and nothing when the
+  ladder has ended (clock.md). Arming any other value, or arming after
+  a `closed`/`ladder_complete` response, is self-scheduling.
 - If the recorder rejects your verdict (`policy_conflict`), the floor
   has spoken: reconcile your record with the policy result and
   re-record. You do not argue with the door.

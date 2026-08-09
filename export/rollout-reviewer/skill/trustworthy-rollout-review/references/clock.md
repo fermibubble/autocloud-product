@@ -69,6 +69,32 @@ floor is reached in ~18 minutes; check then, not at the default."
   criteria close it. The response's `next_check_at` is the schedule's
   decision, not yours; the clock layer executes it.
 
+## Arming the next check
+
+Some harnesses route the clock through you: a deferral tool
+(defer_verification or equivalent) that schedules the session that
+will review the next checkpoint. You are the COURIER of the schedule's
+decision, never its author:
+
+- Arm exactly once per recorded checkpoint, with the record response's
+  `next_check.delay_seconds` - the post-clamp decision, not your
+  proposal and not an invented number.
+- `next_check_at: null` means the ladder ended (final stage, exit
+  criteria, or a governed window): arm nothing; say the episode awaits
+  its outcome.
+- Arm the `next_check.unique_id` the recorder returned (begin_review
+  reports the same value) - never a correlation id you read out of the
+  event body yourself; the deferred session recovers the episode from
+  it (begin_review).
+- A `not_due` answer from begin_review means an early or duplicate
+  timer: arm exactly its `seconds_remaining` and end the session. The
+  recorder gates stage opening on time, so extra timers are harmless -
+  but an early review would compress the soak the policy demands.
+- If arming fails, that is a failure-ladder event: the report and your
+  final message state plainly that the next check is NOT scheduled and
+  that the harness must re-arm it. Silence here reads as a scheduled
+  check that never comes.
+
 ## Honest failure mode
 
 A verdict you would not stand behind at the next checkpoint is already

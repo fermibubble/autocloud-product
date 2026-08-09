@@ -7,8 +7,9 @@
 #   rr validate EPISODE [--require-quoted-evidence]   record validator
 #   rr notify   [args...]                             legacy chat renderer
 #
-# Everything else passes straight through to rr.py (context, checks,
-# record, intel, observe, new-episode, open-checkpoint, outcome, episode).
+# Everything else passes straight through to rr.py (begin, context,
+# checks, record, intel, observe, new-episode, open-checkpoint, outcome,
+# episode).
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"

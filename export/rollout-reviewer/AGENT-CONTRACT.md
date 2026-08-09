@@ -44,6 +44,17 @@ validation protocol for this episode.">
 See `examples/session-input.txt` for a real one (including deliberately
 deceptive trigger text — the skill treats it as unverified data).
 
+**Raw-trigger alternative (event-driven harnesses).** Instead of header
+lines, the session input may be the raw trigger itself, verbatim: a
+platform audit-log entry (a deploy/rollout was observed) or a
+`deferred_check` notice (`{"type": "deferred_check", "unique_id": ...}`
+from a timer armed earlier). The agent passes it unmodified to
+`begin_review`, which derives identity from platform-authoritative
+fields server-side, dedupes redelivered events onto one episode
+(deterministic id from the event's `insertId`), opens the due
+checkpoint, and returns the header facts. See §4 variant B and
+`compat/gcp-harness/SESSION-LIFECYCLE.md`.
+
 ## 3. Agent posture (what Ensemble encoded in its spec; encode in yours)
 
 - **Read-only, structurally**: expose only the tools in
@@ -109,19 +120,41 @@ after the ladder, at the policy's outcome_horizons (default 30m/2h/24h):
 
 Notes: episodes/checkpoints can also be pre-armed in bulk for evals via
 `POST /intel/fixtures/load` (see `servers/rollout-intel/fixtures/`).
-The reviewer never schedules itself — if a session dies, your clock
-re-fires it; the recorder's `UNIQUE(episode, stage)` + completed-at
-guard make replays harmless.
+The reviewer never decides its own schedule — in variant B below it
+carries the recorder's decision to the defer tool, nothing more. If a
+session dies, your clock (or a re-fired timer) re-runs it; the
+recorder's `UNIQUE(episode, stage)` + completed-at guard and
+`begin_review`'s idempotent open make replays harmless.
 
-**If your harness has a `defer_verification`-style tool** (legacy
-pattern): that tool IS a valid clock driver — schedule the next
-checkpoint with it instead of building a new scheduler. Target state:
-the defer call lives in your orchestration layer, outside the reviewer
-session. Transitional state (least rewiring): the reviewer may call it
-only AFTER `record_checkpoint`, as its last action. Details and the
-full legacy tool mapping: `compat/LEGACY-COMPAT.md`. Chat milestones:
-render from the record with `compat/notify-from-record.py` and pipe to
-your chat tool — after recording, never before.
+**Variant B — event-driven clock (`defer_verification`-style tool).**
+A harness whose only scheduler is a defer tool the AGENT calls (Cloud
+Tasks etc.) is a first-class conformant shape; no separate scheduler is
+needed:
+
+- Sessions are started by events, not headers: the deploy audit-log
+  entry the first time, `deferred_check` notices (carrying the same
+  `unique_id` = the trigger's `insertId`) after that. The agent's first
+  call is `begin_review(trigger)` — it creates/finds the episode
+  (redelivery dedupes) and opens the due stage, or answers
+  `closed`/`ladder_complete` when a late timer has nothing to do.
+- The schedule decision still belongs to the recorder:
+  `record_checkpoint`'s response carries `next_check.delay_seconds` and
+  `next_check.unique_id` (post-clamp and recorder-returned — the agent
+  never derives either from the untrusted event body). The agent arms
+  the defer tool exactly once with those values as its LAST action —
+  the courier of the decision, never its author (skill
+  `references/clock.md`, `references/ownership.md`).
+  `next_check_at: null` → arm nothing. Early/duplicate timers bounce
+  off a server-side not-before gate (`not_due` + `seconds_remaining`).
+- Reconcile harness-side: a session that recorded a non-null
+  `next_check` but created no task is an alert; the audit trail's
+  `next_check` decision rows are the ground truth.
+
+Full wiring — trigger parsing, correlation, per-session GCS episode
+store — in `compat/gcp-harness/SESSION-LIFECYCLE.md`. Legacy tool
+mapping: `compat/LEGACY-COMPAT.md`. Chat milestones: render from the
+record with `compat/notify-from-record.py` and pipe to your chat tool —
+after recording, never before.
 
 ## 5. Validating sessions
 

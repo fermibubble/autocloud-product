@@ -29,6 +29,37 @@ the agent workspace. The rest enrich but are optional.
 
 ## rollout-intel tools (MCP :7610/mcp)
 
+### begin_review(trigger_json, session_id="")
+Entry point for event-driven harnesses (session input is a raw trigger,
+not header lines). `trigger_json` is the session input VERBATIM: a
+platform audit-log entry, or a deferred_check notice
+`{"type": "deferred_check", "unique_id": ...}`. Server-side
+(`rollout_intel/triggers.py`): identity is derived from
+platform-authoritative fields only; the episode id derives from the
+event's `insertId` (`ep_<sha256(ref)[:16]>`, or a deterministic
+synthesized ref for bare entries without one), so redelivered events
+and duplicate timers dedupe onto one episode; the due checkpoint (first
+ladder stage without a completed record) is opened idempotently — but
+never after the ladder has ended, and never before the prior stage's
+decided delay has elapsed (a not-before gate absorbs duplicate/early
+timers: `not_due` + `seconds_remaining` says re-arm exactly that and
+end the session). Returns:
+```
+{ status: review_due|not_due|ladder_complete|closed,
+  episode_id, stage,            # stage null unless review_due
+  checkpoint_id?,               # review_due only
+  seconds_remaining?,           # not_due only
+  unique_id,                    # the correlation id to arm defers with
+  service, service_uid, identity_status: confirmed|candidate,
+  episode_status, deduplicated: bool,
+  prior_checkpoints: [{stage, stage_verdict, policy_status}], note }
+```
+Errors: unparseable trigger (no service derivable — never guessed; a
+non-zero `protoPayload.status.code` also refuses — failed operations
+deploy nothing), a deferred_check whose `unique_id` matches no episode
+on this store, or a `correlation collision` (same insertId, different
+parsed service — distinct events sharing a ref never silently merge).
+
 ### get_context_pack(episode_id, stage="")
 What is known before evidence. Returns:
 ```
@@ -86,14 +117,19 @@ guards, in order:
 Success:
 ```
 { checkpoint_id, policy_status, report_version, next_check_at,
-  next_check: {next_check_at, source: ladder|proposal, default_minutes,
+  next_check: {next_check_at, minutes, delay_seconds, unique_id,
+               source: ladder|proposal, default_minutes,
                ladder_end?: final_stage|exit_criteria|governed_window,
                proposal?: {proposal_minutes, clamped_minutes, clamped,
                            direction: tighten|loosen, reason}},
   policy: {…the re-run result…} }
 ```
 The clock layer schedules the next session from `next_check_at`; null
-means the ladder is closed (`next_check.ladder_end` says why).
+means the ladder is closed (`next_check.ladder_end` says why). On a
+defer-tool harness the agent arms
+`defer_verification(next_check.unique_id, next_check.delay_seconds)` as
+its last action — both values recorder-returned verbatim (never derived
+from the event body), nothing when null (AGENT-CONTRACT §4 variant B).
 
 ### evaluate_policy(stage, observations)
 Pure policy evaluation over an explicit envelope array (no recording,
@@ -130,6 +166,9 @@ notes).
 | GET `/intel/episodes[?status=]` | list episodes |
 | GET `/intel/episodes/{id}` | episode + checkpoints (incl. `report_md`) + observation rows (`sig_verified`) — what the validator consumes |
 | POST `/intel/episodes` | create an episode from a deploy event (see AGENT-CONTRACT §4) |
+| POST `/intel/triggers[?session_id=]` | `begin_review` for harness drivers: body = the raw trigger event, verbatim |
+| GET `/intel/episodes/by-ref?ref=` | episode by trigger correlation id (insertId / deferred unique_id) |
+| POST `/intel/flush` | quiesce + merge the WAL so intel.db alone is the complete store (session-DB harnesses; 409 while another process holds it) |
 | POST `/intel/episodes/{id}/checkpoints` | open a checkpoint `{stage, session_id}` |
 | POST `/intel/episodes/{id}/outcome` | record outcome horizon / final label (never overwrites an existing label) |
 | GET `/intel/precedents?episode=` · GET `/intel/dossier?service=[&as_of=]` · GET `/intel/dossier/journal` · `/intel/dossier/proposals` | retrieval + memory reads |

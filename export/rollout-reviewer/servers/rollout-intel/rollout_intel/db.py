@@ -102,6 +102,9 @@ def row_dict(obj: Any) -> dict:
 class Db:
     def __init__(self, path_or_url: str):
         url = _url_for(path_or_url)
+        # A bare filesystem path is snapshot-able (flush); a URL-backed
+        # store is not ours to copy around.
+        self.path: str | None = None if "://" in path_or_url else path_or_url
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
         self.engine: Engine = create_engine(url, connect_args=connect_args)
         if url.startswith("sqlite"):
@@ -134,6 +137,32 @@ class Db:
                             and "already exists" not in msg):
                         log.warning("legacy-column patch failed for %s: %s",
                                     col, exc)
+
+    def flush(self) -> dict:
+        """Quiesce the store for a snapshot upload: close every pooled
+        connection, then merge the WAL into the main database file so the
+        .db file alone is the complete store. A TRUNCATE checkpoint
+        reports busy while pooled readers still hold the file — dispose
+        first, checkpoint second. The engine stays usable afterwards
+        (connections re-create lazily). URL-backed stores (a central
+        Postgres) have nothing to snapshot."""
+        self.engine.dispose()
+        if self.path is None:
+            return {"flushed": False, "reason": "not a file-backed store"}
+        import sqlite3
+        conn = sqlite3.connect(self.path)
+        try:
+            busy, wal_pages, moved = conn.execute(
+                "PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        finally:
+            conn.close()
+        if busy:
+            # Uploading now would silently drop whatever is still in the
+            # WAL — refuse instead.
+            raise RuntimeError(
+                "wal_checkpoint(TRUNCATE) reported busy: another process "
+                "still holds this store; close it before snapshotting")
+        return {"flushed": True, "wal_pages": wal_pages, "pages_moved": moved}
 
     @contextlib.contextmanager
     def session(self) -> Iterator[Session]:
@@ -190,36 +219,78 @@ class Db:
 
     def create_episode(self, service_uid: str, fingerprint: dict,
                        deploy_event: dict,
-                       architecture_version: str | None = None) -> dict:
+                       architecture_version: str | None = None,
+                       episode_id: str | None = None) -> dict:
         """architecture_version comes from the caller's fingerprint (the
         event is the truth about the arch change); the service row is only
         the fallback, so a concurrent arch update cannot be lost between
-        transactions."""
-        episode_id = new_id("ep")
-        with self.session() as s:
-            service = s.get(Service, service_uid)
-            episode = Episode(
-                episode_id=episode_id, service_uid=service_uid,
-                revision_from=deploy_event.get("from_revision", ""),
-                revision_to=deploy_event.get("to_revision", ""),
-                fingerprint_json=json.dumps(fingerprint),
-                deploy_event_json=json.dumps(deploy_event),
-                started_at=now_iso(), status="open",
-                architecture_version=(architecture_version
-                                      or (service.architecture_version or ""
-                                          if service else "")),
-                created_at=now_iso())
-            s.add(episode)
-            s.flush()
-            return row_dict(episode)
+        transactions.
+
+        episode_id may be supplied by the caller when it is DERIVED from a
+        trigger's correlation id (deterministic ids make at-least-once
+        event delivery idempotent). Losing the insert race on a supplied
+        id returns the winner's row — both deliveries land on the same
+        episode."""
+        supplied = episode_id is not None
+        episode_id = episode_id or new_id("ep")
+        try:
+            with self.session() as s:
+                service = s.get(Service, service_uid)
+                episode = Episode(
+                    episode_id=episode_id, service_uid=service_uid,
+                    revision_from=deploy_event.get("from_revision", ""),
+                    revision_to=deploy_event.get("to_revision", ""),
+                    fingerprint_json=json.dumps(fingerprint),
+                    deploy_event_json=json.dumps(deploy_event),
+                    started_at=now_iso(), status="open",
+                    architecture_version=(architecture_version
+                                          or (service.architecture_version or ""
+                                              if service else "")),
+                    created_at=now_iso())
+                s.add(episode)
+                s.flush()
+                return row_dict(episode)
+        except IntegrityError:
+            if not supplied:
+                raise  # a random-id collision is a real fault, not a race
+            with self.session() as s:
+                existing = s.get(Episode, episode_id)
+                if existing is None:
+                    raise  # not the duplicate-id race (e.g. FK) — surface it
+                stored = json.loads(existing.deploy_event_json or "{}")
+                if (stored.get("service") and deploy_event.get("service")
+                        and stored["service"] != deploy_event["service"]):
+                    # Same-ref, different service: an insertId collision,
+                    # not a redelivery — never silently adopt it.
+                    raise ValueError(
+                        f"correlation collision on episode {episode_id}: "
+                        f"bound to {stored['service']!r}, this event names "
+                        f"{deploy_event['service']!r}")
+                result = row_dict(existing)
+                # Losing the race IS a duplicate delivery — the caller's
+                # pre-insert existence check missed it by milliseconds.
+                result["deduplicated"] = True
+                return result
 
     def open_checkpoint(self, episode_id: str, stage: str, session_id: str,
-                        scheduled_at: str) -> dict:
+                        scheduled_at: str, refuse_closed: bool = False) -> dict:
         # Idempotent while open: a clock layer that died between session
         # creation and checkpoint registration re-arms the SAME open
         # checkpoint with its new session instead of tripping
         # UNIQUE(episode_id, stage).
         with self.session() as s:
+            if refuse_closed:
+                # Same transaction as the insert: an outcome label landing
+                # between a caller's earlier closed-check and this open
+                # cannot slip a checkpoint onto a closed episode. Fixture
+                # loading keeps the default (it re-arms labeled corpus
+                # episodes deliberately).
+                episode = s.get(Episode, episode_id)
+                if episode is not None and (
+                        episode.final_label is not None
+                        or episode.status == "closed"):
+                    raise ValueError(f"episode {episode_id} is closed/"
+                                     "labeled; no checkpoint may open")
             existing = s.execute(
                 select(Checkpoint).where(
                     Checkpoint.episode_id == episode_id,

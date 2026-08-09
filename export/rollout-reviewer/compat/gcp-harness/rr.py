@@ -12,6 +12,9 @@ Invoke via the sibling `rr` wrapper (which supplies the python env), or:
   uv run --project <export>/servers/rollout-intel python rr.py ...
 
 Subcommands (core review loop):
+  begin    TRIGGER [--session-id ID]         begin_review - TRIGGER is a
+           file path or inline JSON: the session's raw audit-log event
+           or deferred_check notice, passed VERBATIM
   context  EPISODE [STAGE]                   get_context_pack
   checks   EPISODE STAGE                     run_stage_checks
   record   EPISODE STAGE VERDICT --report F [--summary F|--summary-text S]
@@ -95,6 +98,10 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    p = sub.add_parser("begin")
+    p.add_argument("trigger", help="file path or inline JSON: the raw "
+                                   "trigger event / deferred_check, verbatim")
+    p.add_argument("--session-id", default="")
     p = sub.add_parser("context"); p.add_argument("episode"); p.add_argument("stage", nargs="?", default="")
     p = sub.add_parser("checks"); p.add_argument("episode"); p.add_argument("stage")
     p = sub.add_parser("record")
@@ -126,6 +133,11 @@ def main() -> int:
 
     a = ap.parse_args()
 
+    if a.cmd == "begin":
+        raw = (open(a.trigger).read() if os.path.exists(a.trigger)
+               else a.trigger)
+        return emit(mcp_call(INTEL_MCP, "begin_review",
+                             {"trigger_json": raw, "session_id": a.session_id}))
     if a.cmd == "context":
         return emit(mcp_call(INTEL_MCP, "get_context_pack", {"episode_id": a.episode, "stage": a.stage}))
     if a.cmd == "checks":
