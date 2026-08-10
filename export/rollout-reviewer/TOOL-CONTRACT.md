@@ -102,7 +102,11 @@ defaults to the bundle cached by `run_stage_checks`; passing
 tightening is honored down to the policy's `min_interval_minutes`,
 loosening is clamped to `max_interval_minutes`, ending the ladder is
 never a proposal (only policy exit criteria / the final stage /
-governed windows close it). The proposal, its clamped result, and the
+governed windows close it). Units: minutes are the POLICY vocabulary
+(ladders, bounds, soak — all floats, so `0.5` = 30s when a policy
+wants sub-minute cadence); the response's `next_check.delay_seconds`
+is the EXECUTION unit a deferral tool arms with — no conversion on the
+agent side. The proposal, its clamped result, and the
 reason are stored as a `next_check` audit decision. Server-side
 guards, in order:
 - envelope signature verification; foreign-service scope → error

@@ -555,6 +555,27 @@ def test_tightening_proposal_flows_into_delay_seconds(make_intel, time_travel):
     assert r2["next_check"]["delay_seconds"] == 120
 
 
+def test_sub_minute_scheduling_via_fractional_minutes(make_intel, time_travel):
+    """Minutes are the POLICY unit; seconds are the EXECUTION unit
+    (delay_seconds). Both are floats end to end, so a policy that wants
+    sub-minute cadence just authors fractional bounds - nothing in the
+    chain is quantized to whole minutes."""
+    fast = {**TRIGGER_POLICY,
+            "checkpoints": {**TRIGGER_POLICY["checkpoints"],
+                            "bounds": {"min_interval_minutes": 0.25,
+                                       "max_interval_minutes": 60}}}
+    intel = make_intel(fast)
+    out = intel.begin_review(GKE_EVENT, "sess-1")
+    r = record(intel, out["episode_id"], "G+0",
+               next_check_proposal_minutes=0.5,
+               next_check_reason="sample floor reached in ~30s")
+    assert r["next_check"]["minutes"] == 0.5
+    assert r["next_check"]["delay_seconds"] == 30  # what the timer arms
+    assert r["next_check_at"] == "+0.5m"  # stored decision keeps fractions
+    time_travel(1)
+    assert intel.begin_review(DEFERRED, "sess-2")["stage"] == "G+10"
+
+
 def test_deferred_check_after_ladder_end_arms_nothing(make_intel, time_travel):
     intel = make_intel()
     out = intel.begin_review(GKE_EVENT, "sess-1")
