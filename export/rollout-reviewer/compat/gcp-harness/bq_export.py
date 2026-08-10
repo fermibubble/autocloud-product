@@ -108,7 +108,7 @@ _TABLES: dict[str, tuple[str, list[str]]] = {
         "checkpoint_id", "episode_id", "stage", "scheduled_at", "session_id",
         "completed_at", "stage_verdict", "policy_status", "policy_version",
         "policy_conflict", "report_version", "report_md", "next_check_at",
-        "created_at"]),
+        "next_check_delay_seconds", "created_at"]),
     "observations": ("observation_id", [
         "observation_id", "episode_id", "checkpoint_id", "type", "scope_json",
         "observed_at", "fresh_until", "source", "payload_json", "quality_json",
@@ -147,7 +147,7 @@ _TIMESTAMP_COLS = {
     "activated_at", "deactivated_at", "as_of", "at", "exported_at",
 }
 _INT_COLS = {"policy_conflict", "report_version", "sig_verified",
-             "rollback_detected"}
+             "rollback_detected", "next_check_delay_seconds"}
 _FLOAT_COLS = {"confidence"}
 # Free-text columns the scrub_text hook covers (…_json columns are
 # covered by scrub_json wholesale).
@@ -205,8 +205,18 @@ _DESCRIPTIONS = {
                                  "| insufficient_evidence",
     "checkpoints.report_md": "Full stage report embedding the epistemic "
                              "record (DLP-scrubbed)",
-    "checkpoints.next_check_at": "Relative schedule decision '+Nm'; NULL "
-                                 "means the ladder ended",
+    "checkpoints.next_check_at": "Human-readable schedule decision label "
+                                 "('+Nm', policy vocabulary); "
+                                 "next_check_delay_seconds is the numeric "
+                                 "companion. Both NULL = the ladder ended",
+    "checkpoints.next_check_delay_seconds": "The decided delay in seconds "
+                                            "- exactly what "
+                                            "defer_verification was armed "
+                                            "with. Due time = "
+                                            "TIMESTAMP_ADD(completed_at, "
+                                            "INTERVAL "
+                                            "next_check_delay_seconds "
+                                            "SECOND). NULL = ladder ended",
     "checkpoints.report_version": "Monotonic per-episode report version",
     "observations.sig_verified": "1 = HMAC evidence-envelope signature "
                                  "verified at recording time",

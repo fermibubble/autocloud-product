@@ -269,6 +269,7 @@ class Intel:
             done = [dict(r._mapping) for r in s.execute(
                 select(Checkpoint.stage, Checkpoint.stage_verdict,
                        Checkpoint.policy_status, Checkpoint.next_check_at,
+                       Checkpoint.next_check_delay_seconds,
                        Checkpoint.completed_at)
                 .where(Checkpoint.episode_id == episode_id,
                        Checkpoint.completed_at.is_not(None))
@@ -318,16 +319,21 @@ class Intel:
         # The earliest open time is the last completion plus the decided
         # delay; an early arrival is told the remainder and opens nothing.
         if last is not None and last["next_check_at"]:
-            try:
-                delay_min = float(
-                    str(last["next_check_at"]).lstrip("+").rstrip("m"))
-            except ValueError:
-                delay_min = None
+            delay_s = last.get("next_check_delay_seconds")
+            if delay_s is None:
+                # Rows recorded before the numeric column existed: fall
+                # back to parsing the "+Nm" decision label.
+                try:
+                    delay_s = float(
+                        str(last["next_check_at"]).lstrip("+").rstrip("m")
+                    ) * 60
+                except ValueError:
+                    delay_s = None
             completed_epoch = _epoch(last["completed_at"])
             now_epoch = _epoch(now_iso())
-            if (delay_min is not None and completed_epoch is not None
+            if (delay_s is not None and completed_epoch is not None
                     and now_epoch is not None):
-                nominal_due = completed_epoch + delay_min * 60
+                nominal_due = completed_epoch + float(delay_s)
                 if now_epoch < nominal_due - _EARLY_GRACE_SECONDS:
                     remaining = max(1, int(round(nominal_due - now_epoch)))
                     return dict(
@@ -752,9 +758,12 @@ class Intel:
         # `is not None`, not truthiness: a 0-minute chain value is a
         # policy-authoring error, never a ladder end.
         next_check_at = _fmt(next_minutes) if next_minutes is not None else None
+        next_check_delay_seconds = (int(round(next_minutes * 60))
+                                    if next_minutes is not None else None)
         completed = self.db.complete_checkpoint(
             checkpoint["checkpoint_id"], stage_verdict, policy_status,
-            verdict_result["policy_version"], False, report_md, next_check_at)
+            verdict_result["policy_version"], False, report_md, next_check_at,
+            next_check_delay_seconds)
         if completed is None:
             return {"error": (f"conflict: checkpoint {checkpoint['checkpoint_id']} "
                               "was recorded concurrently; this attempt changed "
@@ -784,8 +793,7 @@ class Intel:
             # extracts it from the (untrusted) event body. None delay
             # means the ladder ended — arm nothing.
             "minutes": next_minutes,
-            "delay_seconds": (int(round(next_minutes * 60))
-                              if next_minutes is not None else None),
+            "delay_seconds": next_check_delay_seconds,
             "unique_id": episode_ref,
             "source": ("proposal" if proposal and "clamped_minutes" in proposal
                        else "ladder"),

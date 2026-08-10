@@ -123,19 +123,20 @@ class Db:
     # Additive columns introduced after a store format shipped; older
     # DBs are patched in place on open (create_all never alters).
     _LEGACY_PATCHES = (
-        ("dossier_journal", "activated_at"),
-        ("dossier_journal", "deactivated_at"),
-        ("episodes", "external_ref"),
-        ("episodes", "event_id"),
-        ("decisions", "episode_id"),
+        ("dossier_journal", "activated_at", "TEXT"),
+        ("dossier_journal", "deactivated_at", "TEXT"),
+        ("episodes", "external_ref", "TEXT"),
+        ("episodes", "event_id", "TEXT"),
+        ("decisions", "episode_id", "TEXT"),
+        ("checkpoints", "next_check_delay_seconds", "INTEGER"),
     )
 
     def _patch_legacy_columns(self) -> None:
         with self.engine.connect() as conn:
-            for table, col in self._LEGACY_PATCHES:
+            for table, col, sql_type in self._LEGACY_PATCHES:
                 try:
                     conn.exec_driver_sql(
-                        f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
+                        f"ALTER TABLE {table} ADD COLUMN {col} {sql_type}")
                     conn.commit()
                 except OperationalError as exc:
                     conn.rollback()
@@ -366,7 +367,9 @@ class Db:
                             # complete a checkpoint; column retained for
                             # schema compatibility
                             policy_conflict: bool, report_md: str,
-                            next_check_at: str | None) -> dict | None:
+                            next_check_at: str | None,
+                            next_check_delay_seconds: int | None = None
+                            ) -> dict | None:
         """Returns None when the checkpoint was already completed — the
         caller lost the race and must not report success or touch the
         episode (lost-update guard from adversarial review)."""
@@ -391,7 +394,8 @@ class Db:
                         policy_version=policy_version,
                         policy_conflict=1 if policy_conflict else 0,
                         report_version=next_version, report_md=report_md,
-                        next_check_at=next_check_at))
+                        next_check_at=next_check_at,
+                        next_check_delay_seconds=next_check_delay_seconds))
             if result.rowcount == 0:
                 return None
             # The ladder ends when there is no next check — the final

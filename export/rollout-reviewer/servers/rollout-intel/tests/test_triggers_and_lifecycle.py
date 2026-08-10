@@ -572,6 +572,15 @@ def test_sub_minute_scheduling_via_fractional_minutes(make_intel, time_travel):
     assert r["next_check"]["minutes"] == 0.5
     assert r["next_check"]["delay_seconds"] == 30  # what the timer arms
     assert r["next_check_at"] == "+0.5m"  # stored decision keeps fractions
+    # The numeric decision is a REAL checkpoint column (streamed to BQ
+    # verbatim; ladder-end rows store NULL).
+    from sqlalchemy import select
+    from rollout_intel.models import Checkpoint
+    with intel.db.session() as s:
+        row = s.execute(select(Checkpoint.next_check_delay_seconds)
+                        .where(Checkpoint.episode_id == out["episode_id"],
+                               Checkpoint.stage == "G+0")).scalar_one()
+    assert row == 30
     time_travel(1)
     assert intel.begin_review(DEFERRED, "sess-2")["stage"] == "G+10"
 

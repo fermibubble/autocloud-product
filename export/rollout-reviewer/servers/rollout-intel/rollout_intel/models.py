@@ -102,7 +102,11 @@ class Checkpoint(Base):
                                                        server_default="0")
     report_version: Mapped[int | None] = mapped_column(Integer)
     report_md: Mapped[str | None] = mapped_column(Text)
+    # The schedule decision, twice: the human-readable relative label
+    # ("+30m", policy vocabulary) and the numeric execution unit the
+    # deferral tool arms with. Both NULL = the ladder ended here.
     next_check_at: Mapped[str | None] = mapped_column(Text)
+    next_check_delay_seconds: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 

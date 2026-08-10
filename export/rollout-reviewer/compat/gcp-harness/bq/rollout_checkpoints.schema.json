@@ -70,7 +70,13 @@
     "name": "next_check_at",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Relative schedule decision '+Nm'; NULL means the ladder ended"
+    "description": "Human-readable schedule decision label ('+Nm', policy vocabulary); next_check_delay_seconds is the numeric companion. Both NULL = the ladder ended"
+  },
+  {
+    "name": "next_check_delay_seconds",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "The decided delay in seconds - exactly what defer_verification was armed with. Due time = TIMESTAMP_ADD(completed_at, INTERVAL next_check_delay_seconds SECOND). NULL = ladder ended"
   },
   {
     "name": "created_at",

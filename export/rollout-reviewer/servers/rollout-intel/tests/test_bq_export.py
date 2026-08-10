@@ -395,7 +395,8 @@ def test_legacy_store_without_join_columns_is_patched_on_open(tmp_path):
     try:  # ...surgically aged: drop the new columns (sqlite >= 3.35)
         for table, col in (("episodes", "external_ref"),
                            ("episodes", "event_id"),
-                           ("decisions", "episode_id")):
+                           ("decisions", "episode_id"),
+                           ("checkpoints", "next_check_delay_seconds")):
             conn.execute(f"ALTER TABLE {table} DROP COLUMN {col}")
         conn.commit()
     finally:
