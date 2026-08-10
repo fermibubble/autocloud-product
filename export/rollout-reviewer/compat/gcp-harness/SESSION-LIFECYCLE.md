@@ -209,11 +209,9 @@ the module creates and writes only its own dataset.
   The schema files are GENERATED from the module
   (`python3 bq_export.py emit-schemas`) and a parity test pins them to
   `bq_schema()` — after a model change: regenerate, commit, re-run the
-  script. `export_episode` defaults to `ensure_schema=False`
-  accordingly (runtime creation stays available as a dev/sandbox
-  bootstrap via `ensure_schema=True`). Pre-created tables also remove
-  the just-created-table 404 window entirely (the exporter still
-  retries it with backoff for the bootstrap path).
+  script. The exporter performs NO DDL at all: a missing table at
+  export time fails loudly with the instruction to run the setup
+  script, and transient insert failures are retried with backoff.
 
 **Suggested event-router patch** (vendor `bq_export.py` and
 `session_db.py` next to `review_design.py`; add near the other env

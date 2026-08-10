@@ -4,7 +4,7 @@ Runs entirely without google-cloud-bigquery: collection and row
 preparation are exercised against a real store built through Intel
 (begin_review -> record x3 -> outcome label), and the upload path is
 driven with a fake client capturing insert_rows_json calls
-(ensure_schema=False keeps the lazy BQ import untouched).
+(the module performs no DDL, so a fake client suffices).
 """
 
 import importlib.util
@@ -172,7 +172,7 @@ def test_export_uploads_scrubbed_snapshot_rows(finished_store):
     summary = bq_export.export_episode(
         db_path, phase="ladder_complete",
         external_ref=EVENT["insertId"],
-        client=fake, ensure_schema=False, export_session="sess-2",
+        client=fake, export_session="sess-2",
         scrub_text=lambda s: s.replace("SENSITIVE", "[RED]"),
         scrub_json=lambda obj: obj)
     assert summary["episodes"] == 1 and summary["checkpoints"] == 2
@@ -210,7 +210,7 @@ def test_export_raises_on_bq_row_errors(finished_store):
     with pytest.raises(RuntimeError, match="rejected"):
         bq_export.export_episode(db_path, phase="ladder_complete",
                                  external_ref=EVENT["insertId"],
-                                 client=Rejecting(), ensure_schema=False)
+                                 client=Rejecting())
 
 
 def test_timestamp_sanitizer_and_finished_finder(finished_store):
@@ -247,7 +247,7 @@ def test_unparseable_stored_json_exports_as_string_literal(finished_store):
     fake = FakeBq()
     summary = bq_export.export_episode(
         db_path, phase="outcome_final", episode_id=episode_id,
-        client=fake, ensure_schema=False,
+        client=fake,
         scrub_text=lambda s: s.replace("SENSITIVE", "[RED]"),
         scrub_json=lambda obj: obj)
     assert summary["unparseable_json"] == 1
@@ -268,7 +268,7 @@ def test_scrub_json_failure_fails_closed_to_null(finished_store):
     fake = FakeBq()
     summary = bq_export.export_episode(
         db_path, phase="outcome_final", episode_id=episode_id,
-        client=fake, ensure_schema=False,
+        client=fake,
         scrub_text=lambda s: s, scrub_json=exploding)
     assert summary["scrub_failures"] > 0
     episode_rows = next(r for t, r, _ in fake.calls
@@ -281,7 +281,7 @@ def test_one_sided_scrub_hooks_are_rejected(finished_store):
     db_path, episode_id = finished_store
     with pytest.raises(ValueError, match="BOTH"):
         bq_export.export_episode(db_path, phase="x", episode_id=episode_id,
-                                 client=FakeBq(), ensure_schema=False,
+                                 client=FakeBq(),
                                  scrub_text=lambda s: s)
 
 
@@ -290,7 +290,7 @@ def test_denylisted_dataset_is_refused_before_any_work(finished_store):
     with pytest.raises(ValueError, match="harness dataset"):
         bq_export.export_episode(db_path, phase="x", episode_id=episode_id,
                                  dataset="autocloud_analysis",
-                                 client=FakeBq(), ensure_schema=False)
+                                 client=FakeBq())
 
 
 def test_immutable_read_creates_no_sqlite_side_files(finished_store):
@@ -323,15 +323,17 @@ def test_committed_schema_files_match_the_module():
     assert (bq_dir / "setup-bq.sh").exists()
 
 
-def test_emit_views_and_default_no_runtime_ddl(finished_store, tmp_path):
+def test_emit_views_and_no_runtime_ddl(finished_store, tmp_path):
     sql = bq_export.emit_views_sql("proj-x", "ds-y")
     assert sql.count("CREATE OR REPLACE VIEW") == len(bq_export._TABLES)
     assert "`proj-x.ds-y.rollout_episodes_latest`" in sql
     # emit_schema_files round-trips.
     written = bq_export.emit_schema_files(str(tmp_path / "out"))
     assert len(written) == len(bq_export._TABLES)
-    # DDL is out of band: export_episode defaults to ensure_schema=False
-    # (FakeBq has no get_dataset/create_table - runtime DDL would blow up).
+    # The module performs NO runtime DDL: no creation entry points, and
+    # a bare export streams straight through a client that only knows
+    # insert_rows_json (any DDL attempt would AttributeError on FakeBq).
+    assert not hasattr(bq_export, "ensure_dataset_and_tables")
     db_path, episode_id = finished_store
     summary = bq_export.export_episode(db_path, phase="outcome_final",
                                        episode_id=episode_id,
@@ -339,27 +341,21 @@ def test_emit_views_and_default_no_runtime_ddl(finished_store, tmp_path):
     assert summary["episodes"] == 1
 
 
-def test_schema_drift_normalizes_type_aliases():
-    # The live API echoes legacy names; standard-SQL aliases must not
-    # read as conflicts.
-    live = [(f["name"], "INT64" if f["type"] == "INTEGER" else f["type"])
-            for f in bq_export.bq_schema("checkpoints")]
-    missing, conflicts = bq_export.schema_drift(live, "checkpoints")
-    assert missing == [] and conflicts == []
+def test_missing_table_names_the_out_of_band_setup(finished_store):
+    """A 404 is a setup error, not a retry loop: DDL is out of band, so
+    the error must say to run bq/setup-bq.sh."""
+    db_path, episode_id = finished_store
 
+    class NotFound(Exception):
+        pass
 
-def test_schema_drift_helper_detects_additive_and_conflicting():
-    live = [(f["name"], f["type"]) for f in bq_export.bq_schema("episodes")]
-    missing, conflicts = bq_export.schema_drift(live, "episodes")
-    assert missing == [] and conflicts == []
-    # Older live table: one column absent -> additive append.
-    absent = [f for f in live if f[0] != "final_label"]
-    missing, conflicts = bq_export.schema_drift(absent, "episodes")
-    assert [f["name"] for f in missing] == ["final_label"] and not conflicts
-    # Same name, different type -> conflict, never an insert.
-    retyped = [(n, "STRING" if n == "created_at" else t) for n, t in live]
-    _, conflicts = bq_export.schema_drift(retyped, "episodes")
-    assert conflicts and "created_at" in conflicts[0]
+    class NoTables(FakeBq):
+        def insert_rows_json(self, table_id, rows, row_ids=None):
+            raise NotFound(f"404 {table_id}")
+
+    with pytest.raises(RuntimeError, match="setup-bq.sh"):
+        bq_export.export_episode(db_path, phase="ladder_complete",
+                                 episode_id=episode_id, client=NoTables())
 
 
 def test_row_id_is_content_sensitive_but_retry_stable():

@@ -2,8 +2,8 @@
 # One-time (and per-schema-change) DDL for the rollout-intel BigQuery
 # export: dataset + nine rollout_* tables + *_latest views, created out
 # of band with `bq mk` from the committed *.schema.json files in this
-# directory. The exporter (bq_export.py) then only streams rows
-# (ensure_schema=False, its default).
+# directory. The exporter (bq_export.py) performs no DDL at all - it
+# only streams rows into these tables.
 #
 # The schema files are GENERATED from bq_export.py
 # (`python3 ../bq_export.py emit-schemas`) and a parity test pins them
@@ -42,9 +42,8 @@ for schema in "${DIR}"/rollout_*.schema.json; do
   table="$(basename "${schema}" .schema.json)"
   echo "== table ${DATASET}.${table}"
   if bq show "${PROJECT_ID}:${DATASET}.${table}" > /dev/null 2>&1; then
-    echo "   exists - leaving it untouched (schema changes: additive"
-    echo "   'bq update --schema', or let ensure_dataset_and_tables"
-    echo "   append the new NULLABLE columns)"
+    echo "   exists - leaving it untouched (schema changes: apply the"
+    echo "   regenerated file additively with 'bq update --schema')"
   else
     bq mk --table \
       --schema="${schema}" \
@@ -59,4 +58,4 @@ echo "== views (*_latest, CREATE OR REPLACE)"
 python3 "${DIR}/../bq_export.py" emit-views "${PROJECT_ID}" "${DATASET}" \
   | bq query --use_legacy_sql=false --project_id="${PROJECT_ID}"
 
-echo "DONE - ${DATASET} ready; the exporter streams with ensure_schema=False."
+echo "DONE - ${DATASET} ready; the exporter only streams rows into it."
