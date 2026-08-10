@@ -89,6 +89,7 @@ ALM_EVENT = {
 }
 
 GENERIC_EVENT = {
+    "id": "replay-rollout-reviewer-726142",  # ce-id; real replay events carry both
     "insertId": "replay-rollout-reviewer-726142",
     "protoPayload": {
         "methodName": "v1.compute.instances.insert",
