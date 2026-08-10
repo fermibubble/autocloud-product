@@ -120,14 +120,22 @@ class Db:
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False)
         log.info("episode store ready at %s", url)
 
+    # Additive columns introduced after a store format shipped; older
+    # DBs are patched in place on open (create_all never alters).
+    _LEGACY_PATCHES = (
+        ("dossier_journal", "activated_at"),
+        ("dossier_journal", "deactivated_at"),
+        ("episodes", "external_ref"),
+        ("episodes", "event_id"),
+        ("decisions", "episode_id"),
+    )
+
     def _patch_legacy_columns(self) -> None:
-        # Dev DBs created before the dossier layer lack the bitemporal
-        # columns (create_all never alters); patch in place.
         with self.engine.connect() as conn:
-            for col in ("activated_at", "deactivated_at"):
+            for table, col in self._LEGACY_PATCHES:
                 try:
                     conn.exec_driver_sql(
-                        f"ALTER TABLE dossier_journal ADD COLUMN {col} TEXT")
+                        f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
                     conn.commit()
                 except OperationalError as exc:
                     conn.rollback()
@@ -135,8 +143,8 @@ class Db:
                     # Both spellings of the benign duplicate-column case.
                     if ("duplicate column" not in msg
                             and "already exists" not in msg):
-                        log.warning("legacy-column patch failed for %s: %s",
-                                    col, exc)
+                        log.warning("legacy-column patch failed for %s.%s: %s",
+                                    table, col, exc)
 
     def flush(self) -> dict:
         """Quiesce the store for a snapshot upload: close every pooled
@@ -233,11 +241,16 @@ class Db:
         episode."""
         supplied = episode_id is not None
         episode_id = episode_id or new_id("ep")
+        trigger_info = deploy_event.get("trigger")
+        if not isinstance(trigger_info, dict):
+            trigger_info = {}
         try:
             with self.session() as s:
                 service = s.get(Service, service_uid)
                 episode = Episode(
                     episode_id=episode_id, service_uid=service_uid,
+                    external_ref=deploy_event.get("external_ref") or None,
+                    event_id=trigger_info.get("event_id") or None,
                     revision_from=deploy_event.get("from_revision", ""),
                     revision_to=deploy_event.get("to_revision", ""),
                     fingerprint_json=json.dumps(fingerprint),
@@ -419,10 +432,11 @@ class Db:
             pass  # concurrent presenter won the race - same envelope
 
     def insert_decision(self, checkpoint_id: str, kind: str, value: dict,
-                        inputs: dict) -> None:
+                        inputs: dict, episode_id: str | None = None) -> None:
         with self.session() as s:
             s.add(Decision(
                 decision_id=new_id("dec"), checkpoint_id=checkpoint_id,
+                episode_id=episode_id,
                 kind=kind, value_json=json.dumps(value),
                 inputs_json=json.dumps(inputs), recorded_at=now_iso()))
 

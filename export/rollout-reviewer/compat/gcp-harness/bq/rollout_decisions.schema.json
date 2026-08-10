@@ -13,7 +13,7 @@
     "name": "episode_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Derived via checkpoints so per-episode queries need no join"
+    "description": "Denormalized from the checkpoint at decision time so per-episode queries need no join (NULL on rows written before the column existed; the checkpoint join is authoritative)"
   },
   {
     "name": "kind",

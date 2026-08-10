@@ -658,7 +658,8 @@ class Intel:
             self.db.insert_decision(checkpoint["checkpoint_id"], "stage_verdict",
                                     {"rejected_verdict": stage_verdict,
                                      "policy_status": policy_status},
-                                    {"reason": "policy_conflict"})
+                                    {"reason": "policy_conflict"},
+                                    episode_id=episode_id)
             return {"error": (f"policy_conflict: policy evaluated {policy_status} "
                               f"({verdict_result['required_missing'] or 'rule failures'}) — "
                               f"a {stage_verdict!r} verdict cannot be recorded. Reconcile "
@@ -773,7 +774,8 @@ class Intel:
             {"observation_ids": [e.get("observation_id") for e in envelopes],
              "policy_rule_ids": [r["rule_id"] for r in verdict_result["rule_results"]],
              "precedent_episode_ids": precedent_ids,
-             "dossier_fields_used": dossier_fields})
+             "dossier_fields_used": dossier_fields},
+            episode_id=episode_id)
         next_check_info = {
             "next_check_at": next_check_at,
             # What a deferral-tool harness (Cloud Tasks etc.) arms with:
@@ -794,7 +796,8 @@ class Intel:
         self.db.insert_decision(checkpoint["checkpoint_id"], "next_check",
                                 next_check_info,
                                 {"bounds": self.pack.bounds,
-                                 "exit": self.pack.exit_criteria})
+                                 "exit": self.pack.exit_criteria},
+                                episode_id=episode_id)
         return {"checkpoint_id": checkpoint["checkpoint_id"],
                 "policy_status": policy_status,
                 "report_version": completed["report_version"],
@@ -1363,6 +1366,11 @@ def build_rest(intel: Intel, port: int) -> ThreadingHTTPServer:
                         # fixture episode id (outcomes stay attached).
                         s.merge(Episode(
                             episode_id=ep["episode_id"],
+                            external_ref=ep.get("deploy_event", {}).get(
+                                "external_ref") or None,
+                            event_id=(ep.get("deploy_event", {})
+                                      .get("trigger", {}) or {}).get(
+                                          "event_id") or None,
                             service_uid=ep["service_uid"],
                             revision_from=ep.get("revision_from", ""),
                             revision_to=ep.get("revision_to", ""),

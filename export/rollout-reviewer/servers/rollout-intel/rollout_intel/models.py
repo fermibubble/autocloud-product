@@ -1,10 +1,12 @@
 """SQLAlchemy 2.0 typed models — the single schema definition.
 
-Column names, types, constraints, and defaults are byte-compatible with
-the pre-ORM SQLite schema: an episode-store.db created by an older
-build opens cleanly under these models and vice versa. JSON-carrying
-columns stay TEXT (serialized at the repository boundary in db.py) so
-stored bytes are identical across the migration.
+Column names, types, constraints, and defaults are compatible with the
+pre-ORM SQLite schema: an episode-store.db created by an older build
+opens cleanly under these models (Db patches the additive columns —
+episodes.external_ref / episodes.event_id / decisions.episode_id and
+the dossier bitemporal pair — in place on open). JSON-carrying columns
+stay TEXT (serialized at the repository boundary in db.py) so stored
+bytes are identical across the migration.
 
 Design invariants the schema encodes (do not weaken them in a refactor):
   - final_verdict (what the agent concluded) and final_label (what the
@@ -59,6 +61,11 @@ class Episode(Base):
     __tablename__ = "episodes"
 
     episode_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    # Trigger correlation id (Cloud Logging insertId or synthesized
+    # ref) and the birthing delivery's CloudEvents id — first-class so
+    # downstream exports stream the table verbatim, no JSON digging.
+    external_ref: Mapped[str | None] = mapped_column(Text)
+    event_id: Mapped[str | None] = mapped_column(Text)
     service_uid: Mapped[str] = mapped_column(
         Text, ForeignKey("services.service_uid"), nullable=False)
     revision_from: Mapped[str | None] = mapped_column(Text)
@@ -123,6 +130,9 @@ class Decision(Base):
     decision_id: Mapped[str] = mapped_column(Text, primary_key=True)
     checkpoint_id: Mapped[str] = mapped_column(
         Text, ForeignKey("checkpoints.checkpoint_id"), nullable=False)
+    # Denormalized from the checkpoint so per-episode reads (and the
+    # BigQuery stream) need no join; the checkpoint remains authoritative.
+    episode_id: Mapped[str | None] = mapped_column(Text)
     kind: Mapped[str | None] = mapped_column(
         Text, CheckConstraint(
             "kind IN ('stage_verdict','final_verdict','escalation','next_check')"))

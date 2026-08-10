@@ -119,8 +119,9 @@ def test_collect_gathers_the_full_episode(finished_store):
     collected = bq_export.collect_episode_rows(db_path, episode_id)
     assert len(collected["episodes"]) == 1
     assert collected["episodes"][0]["final_label"] == "healthy"
-    # The derived join keys: insertId to agent_executions.insert_id,
-    # and the triggering delivery's CloudEvents id.
+    # REAL store columns, streamed 1:1 (no export-side derivation):
+    # insertId joins agent_executions.insert_id; event_id is the
+    # triggering delivery's CloudEvents id; decisions carry episode_id.
     assert collected["episodes"][0]["external_ref"] == EVENT["insertId"]
     assert collected["episodes"][0]["event_id"] == "ce-delivery-42"
     assert len(collected["checkpoints"]) == 2
@@ -362,6 +363,52 @@ def test_missing_table_names_the_out_of_band_setup(finished_store):
     with pytest.raises(RuntimeError, match="setup-bq.sh"):
         bq_export.export_episode(db_path, phase="ladder_complete",
                                  episode_id=episode_id, client=NoTables())
+
+
+def test_join_keys_are_real_sqlite_columns(finished_store):
+    """The user-facing contract: simple streaming from the .db, no BQ
+    layer massaging - the join keys must exist IN SQLite."""
+    import sqlite3 as _sqlite3
+    db_path, episode_id = finished_store
+    conn = _sqlite3.connect(f"file:{db_path}?immutable=1", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT external_ref, event_id FROM episodes "
+            "WHERE episode_id = ?", (episode_id,)).fetchone()
+        assert row == (EVENT["insertId"], "ce-delivery-42")
+        decision_episodes = {r[0] for r in conn.execute(
+            "SELECT episode_id FROM decisions").fetchall()}
+        assert decision_episodes == {episode_id}
+    finally:
+        conn.close()
+
+
+def test_legacy_store_without_join_columns_is_patched_on_open(tmp_path):
+    """A .db created before the join columns existed gains them on the
+    next Db() open (additive ALTERs), so old session stores keep
+    working and streaming."""
+    import sqlite3 as _sqlite3
+    from rollout_intel.db import Db
+    db_path = str(tmp_path / "legacy.db")
+    Db(db_path).flush()  # full current schema...
+    conn = _sqlite3.connect(db_path)
+    try:  # ...surgically aged: drop the new columns (sqlite >= 3.35)
+        for table, col in (("episodes", "external_ref"),
+                           ("episodes", "event_id"),
+                           ("decisions", "episode_id")):
+            conn.execute(f"ALTER TABLE {table} DROP COLUMN {col}")
+        conn.commit()
+    finally:
+        conn.close()
+    reopened = Db(db_path)  # patches the columns back
+    with reopened.session() as s:
+        from sqlalchemy import text
+        cols = {r[1] for r in s.execute(
+            text("PRAGMA table_info(episodes)"))}
+        assert {"external_ref", "event_id"} <= cols
+        dcols = {r[1] for r in s.execute(
+            text("PRAGMA table_info(decisions)"))}
+        assert "episode_id" in dcols
 
 
 def test_row_id_is_content_sensitive_but_retry_stable():

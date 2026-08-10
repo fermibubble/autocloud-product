@@ -33,10 +33,11 @@ Design:
     other table's rows for that phase landed. A partial failure raises
     RuntimeError naming what did and did not land; the caller retries
     (re-exporting already-landed tables is harmless snapshot noise).
-  - Column names and stored bytes match the SQLite schema exactly
-    (…_json columns upload as BigQuery JSON, timestamps as TIMESTAMP);
-    the one addition is decisions.episode_id, derived via checkpoints
-    so per-episode queries need no join.
+  - Column names and stored bytes match the SQLite schema exactly -
+    a pure 1:1 stream (…_json columns upload as BigQuery JSON,
+    timestamps as TIMESTAMP). Join keys (episodes.external_ref /
+    event_id, decisions.episode_id) are real store columns stamped at
+    write time, never derived here.
   - Scrubbing: pass BOTH hooks or neither - scrub_text(str)->str for
     free-text columns, scrub_json(obj)->obj for parsed *_json values.
     A stored value that is not valid JSON (the recorder never gates)
@@ -175,8 +176,8 @@ _DESCRIPTIONS = {
                              "insertId (or synth-<hash> for insertId-less "
                              "entries). Equals defer_verification's "
                              "unique_id and agent_executions.insert_id - "
-                             "THE join key to the harness table. Derived "
-                             "from deploy_event_json at export time",
+                             "THE join key to the harness table. Stamped "
+                             "on the episode row at creation",
     "episodes.event_id": "CloudEvents id of the TRIGGERING delivery, when "
                          "the forwarded event carried a top-level 'id'. "
                          "Per-delivery, not per-episode: each deferred fire "
@@ -214,8 +215,10 @@ _DESCRIPTIONS = {
                                  "bytes were not parseable",
     "decisions.kind": "stage_verdict | final_verdict | escalation | "
                       "next_check",
-    "decisions.episode_id": "Derived via checkpoints so per-episode "
-                            "queries need no join",
+    "decisions.episode_id": "Denormalized from the checkpoint at decision "
+                            "time so per-episode queries need no join "
+                            "(NULL on rows written before the column "
+                            "existed; the checkpoint join is authoritative)",
     "outcomes.horizon": "Policy outcome horizon (e.g. 30m/2h/24h) or "
                         "'final'",
     "outcomes.source": "collector | webhook | human",
@@ -352,36 +355,21 @@ def collect_episode_rows(db_path: str, episode_id: str, *,
         def rows(sql, *args):
             return [dict(r) for r in conn.execute(sql, args).fetchall()]
 
-        # external_ref and event_id are derived (like
-        # decisions.episode_id): the store keeps them inside
-        # deploy_event_json; the export promotes them to first-class
-        # columns. external_ref (insertId / synth ref) is THE join key
-        # to agent_executions.insert_id and defer_verification's
-        # unique_id; event_id is the triggering delivery's ce-id when
-        # the forwarded event carried one.
-        episode_row = dict(episode)
-        try:
-            deploy_event = (json.loads(
-                episode_row.get("deploy_event_json") or "{}") or {})
-        except ValueError:
-            deploy_event = {}
-        episode_row["external_ref"] = deploy_event.get("external_ref") or None
-        trigger_info = deploy_event.get("trigger")
-        episode_row["event_id"] = (
-            trigger_info.get("event_id")
-            if isinstance(trigger_info, dict) else None) or None
-
+        # Pure 1:1 stream: every column below is a REAL column in the
+        # SQLite store (external_ref/event_id on episodes, episode_id
+        # on decisions are stamped at write time) - no export-side
+        # derivation or JSON digging. The decisions filter joins via
+        # checkpoints only so rows written before the episode_id column
+        # existed are still collected; their stored value streams as-is.
         out = {
-            "episodes": [episode_row],
+            "episodes": [dict(episode)],
             "services": rows("SELECT * FROM services WHERE service_uid = ?",
                              episode["service_uid"]),
             "checkpoints": rows(
                 "SELECT * FROM checkpoints WHERE episode_id = ? "
                 "ORDER BY created_at, checkpoint_id", episode_id),
-            # episode_id is derived onto decisions so per-episode BQ
-            # queries need no join.
             "decisions": rows(
-                "SELECT d.*, c.episode_id AS episode_id FROM decisions d "
+                "SELECT d.* FROM decisions d "
                 "JOIN checkpoints c ON c.checkpoint_id = d.checkpoint_id "
                 "WHERE c.episode_id = ? ORDER BY d.recorded_at, d.decision_id",
                 episode_id),
