@@ -196,11 +196,24 @@ the module creates and writes only its own dataset.
   — BigQuery rejected rows: retry the export (safe — duplicates are
   snapshot noise the views ignore, and the `episodes` commit marker
   is inserted LAST, so `*_latest` never advertises a torn phase).
-- **Pre-create the dataset at deploy time** (run
-  `ensure_dataset_and_tables` + the view setup below once): streaming
-  inserts into a just-created table can 404 for a short window. The
-  exporter also retries those with backoff, but deploy-time creation
-  removes the window entirely.
+- **DDL runs out of band, not at runtime.** The committed
+  `bq/*.schema.json` files (standard `bq mk --schema` format, with
+  column descriptions) plus `bq/setup-bq.sh` create the dataset,
+  tables (day-partitioned on `exported_at`), and `*_latest` views at
+  deploy time:
+
+  ```bash
+  PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-bq.sh
+  ```
+
+  The schema files are GENERATED from the module
+  (`python3 bq_export.py emit-schemas`) and a parity test pins them to
+  `bq_schema()` — after a model change: regenerate, commit, re-run the
+  script. `export_episode` defaults to `ensure_schema=False`
+  accordingly (runtime creation stays available as a dev/sandbox
+  bootstrap via `ensure_schema=True`). Pre-created tables also remove
+  the just-created-table 404 window entirely (the exporter still
+  retries it with backoff for the bootstrap path).
 
 **Suggested event-router patch** (vendor `bq_export.py` and
 `session_db.py` next to `review_design.py`; add near the other env
@@ -299,17 +312,18 @@ bq_export.export_episode(db_path, episode_id=episode_id,
                          scrub_json=deidentify_json_structure)
 ```
 
-**One-time view setup** (after the first export created the tables):
+**One-time setup** — dataset, tables, and views all come from the DDL
+script (re-run it after any schema regeneration; it never touches
+existing datasets/tables, and views are CREATE OR REPLACE):
 
-```python
-from google.cloud import bigquery
-import bq_export
-client = bigquery.Client(project="<project>")
-bq_export.ensure_dataset_and_tables(client, "<project>")
-for table, (pk, _) in bq_export._TABLES.items():
-    client.query(bq_export.LATEST_VIEW_SQL.format(
-        project="<project>", dataset="autocloud_rollout_intel",
-        table=f"rollout_{table}", pk=pk)).result()
+```bash
+PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-bq.sh
+# equivalent, table by table:
+#   bq mk --table --schema=bq/rollout_episodes.schema.json \
+#     --time_partitioning_field exported_at --time_partitioning_type DAY \
+#     ${PROJECT_ID}:autocloud_rollout_intel.rollout_episodes
+#   ... and views: python3 bq_export.py emit-views ${PROJECT_ID} | \
+#     bq query --use_legacy_sql=false
 ```
 
 ## 6. What this changes about the clock contract

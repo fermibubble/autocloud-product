@@ -303,6 +303,51 @@ def test_immutable_read_creates_no_sqlite_side_files(finished_store):
     assert not wal.exists() and not shm.exists()
 
 
+def test_committed_schema_files_match_the_module():
+    """The bq/*.schema.json files are the out-of-band DDL source; this
+    parity test pins them to bq_schema() so the exporter's row shapes
+    and the `bq mk` tables can never drift apart. On failure:
+    `python3 compat/gcp-harness/bq_export.py emit-schemas` and re-run
+    bq/setup-bq.sh."""
+    import json as _json
+    bq_dir = Path(_spec.origin).parent / "bq"
+    expected_files = {f"rollout_{t}.schema.json" for t in bq_export._TABLES}
+    actual_files = {p.name for p in bq_dir.glob("rollout_*.schema.json")}
+    assert actual_files == expected_files
+    for table in bq_export._TABLES:
+        committed = _json.loads(
+            (bq_dir / f"rollout_{table}.schema.json").read_text())
+        assert committed == bq_export.bq_schema(table), \
+            f"{table}: regenerate with `bq_export.py emit-schemas`"
+    # The setup script exists alongside them.
+    assert (bq_dir / "setup-bq.sh").exists()
+
+
+def test_emit_views_and_default_no_runtime_ddl(finished_store, tmp_path):
+    sql = bq_export.emit_views_sql("proj-x", "ds-y")
+    assert sql.count("CREATE OR REPLACE VIEW") == len(bq_export._TABLES)
+    assert "`proj-x.ds-y.rollout_episodes_latest`" in sql
+    # emit_schema_files round-trips.
+    written = bq_export.emit_schema_files(str(tmp_path / "out"))
+    assert len(written) == len(bq_export._TABLES)
+    # DDL is out of band: export_episode defaults to ensure_schema=False
+    # (FakeBq has no get_dataset/create_table - runtime DDL would blow up).
+    db_path, episode_id = finished_store
+    summary = bq_export.export_episode(db_path, phase="outcome_final",
+                                       episode_id=episode_id,
+                                       client=FakeBq())
+    assert summary["episodes"] == 1
+
+
+def test_schema_drift_normalizes_type_aliases():
+    # The live API echoes legacy names; standard-SQL aliases must not
+    # read as conflicts.
+    live = [(f["name"], "INT64" if f["type"] == "INTEGER" else f["type"])
+            for f in bq_export.bq_schema("checkpoints")]
+    missing, conflicts = bq_export.schema_drift(live, "checkpoints")
+    assert missing == [] and conflicts == []
+
+
 def test_schema_drift_helper_detects_additive_and_conflicting():
     live = [(f["name"], f["type"]) for f in bq_export.bq_schema("episodes")]
     missing, conflicts = bq_export.schema_drift(live, "episodes")

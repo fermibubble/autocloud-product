@@ -1,0 +1,87 @@
+[
+  {
+    "name": "service_uid",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Canonical identity svc://tenant/name/env/region; inferred*/ tenants are runtime candidates"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "environment",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "runtime",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "architecture_version",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "owner",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "aliases_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "confirmed (catalog-backed) | candidate (inferred)"
+  },
+  {
+    "name": "confirmed_by",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "confirmed_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "exported_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Snapshot upload time (microsecond precision); the *_latest views key on it"
+  },
+  {
+    "name": "export_phase",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ladder_complete (final verdict recorded) | outcome_final (re-export after ground-truth labeling)"
+  },
+  {
+    "name": "export_session",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Harness session that ran the export"
+  }
+]

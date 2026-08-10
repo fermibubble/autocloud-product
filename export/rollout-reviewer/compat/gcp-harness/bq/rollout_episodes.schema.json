@@ -1,0 +1,92 @@
+[
+  {
+    "name": "episode_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Primary key; deterministic ep_<sha256(correlation ref)[:16]> for trigger-born episodes"
+  },
+  {
+    "name": "service_uid",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Canonical identity svc://tenant/name/env/region; inferred*/ tenants are runtime candidates"
+  },
+  {
+    "name": "revision_from",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "revision_to",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "fingerprint_json",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Deterministic rollout fingerprint - the retrieval key for precedent matching"
+  },
+  {
+    "name": "deploy_event_json",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Parsed deploy event incl. external_ref and trigger provenance (DLP-scrubbed)"
+  },
+  {
+    "name": "started_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "open | in_progress | awaiting_outcome | closed"
+  },
+  {
+    "name": "final_verdict",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "What the agent concluded: healthy | regression-suspected | insufficient-evidence"
+  },
+  {
+    "name": "final_label",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "What reality proved: healthy | regressed | rolled_back - from outcomes/humans, never from agent verdicts"
+  },
+  {
+    "name": "labeled_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "architecture_version",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "exported_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Snapshot upload time (microsecond precision); the *_latest views key on it"
+  },
+  {
+    "name": "export_phase",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ladder_complete (final verdict recorded) | outcome_final (re-export after ground-truth labeling)"
+  },
+  {
+    "name": "export_session",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Harness session that ran the export"
+  }
+]

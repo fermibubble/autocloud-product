@@ -1,0 +1,57 @@
+[
+  {
+    "name": "decision_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "checkpoint_id",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "episode_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Derived via checkpoints so per-episode queries need no join"
+  },
+  {
+    "name": "kind",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "stage_verdict | final_verdict | escalation | next_check"
+  },
+  {
+    "name": "value_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "inputs_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "recorded_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "exported_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Snapshot upload time (microsecond precision); the *_latest views key on it"
+  },
+  {
+    "name": "export_phase",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ladder_complete (final verdict recorded) | outcome_final (re-export after ground-truth labeling)"
+  },
+  {
+    "name": "export_session",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Harness session that ran the export"
+  }
+]

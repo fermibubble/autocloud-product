@@ -1,0 +1,52 @@
+[
+  {
+    "name": "feedback_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "episode_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Episode this row belongs to; ep_<sha256(ref)[:16]> for trigger-born episodes"
+  },
+  {
+    "name": "type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "human_override | human_confirm | incident_link | root_cause"
+  },
+  {
+    "name": "actor",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "payload_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "recorded_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "exported_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Snapshot upload time (microsecond precision); the *_latest views key on it"
+  },
+  {
+    "name": "export_phase",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ladder_complete (final verdict recorded) | outcome_final (re-export after ground-truth labeling)"
+  },
+  {
+    "name": "export_session",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Harness session that ran the export"
+  }
+]

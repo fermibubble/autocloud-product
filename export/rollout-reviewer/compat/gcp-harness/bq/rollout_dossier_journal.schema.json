@@ -1,0 +1,113 @@
+[
+  {
+    "name": "rev_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "service_uid",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Canonical identity svc://tenant/name/env/region; inferred*/ tenants are runtime candidates"
+  },
+  {
+    "name": "field",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "value_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "epistemic_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "approved | observed | asserted | inferred | hypothesized | rejected"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "proposed | active | superseded | rejected | expired"
+  },
+  {
+    "name": "confidence",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "valid_from",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "valid_to",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "recorded_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "expires_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "sources_json",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "rationale",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "owner_verified_by",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "superseded_by_rev",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "memory_id",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "activated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "deactivated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "exported_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Snapshot upload time (microsecond precision); the *_latest views key on it"
+  },
+  {
+    "name": "export_phase",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ladder_complete (final verdict recorded) | outcome_final (re-export after ground-truth labeling)"
+  },
+  {
+    "name": "export_session",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Harness session that ran the export"
+  }
+]
