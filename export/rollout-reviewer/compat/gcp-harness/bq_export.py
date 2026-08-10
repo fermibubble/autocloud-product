@@ -99,10 +99,10 @@ _TABLES: dict[str, tuple[str, list[str]]] = {
         "architecture_version", "owner", "aliases_json", "source", "status",
         "confirmed_by", "confirmed_at", "created_at"]),
     "episodes": ("episode_id", [
-        "episode_id", "service_uid", "revision_from", "revision_to",
-        "fingerprint_json", "deploy_event_json", "started_at", "status",
-        "final_verdict", "final_label", "labeled_at", "architecture_version",
-        "created_at"]),
+        "episode_id", "external_ref", "service_uid", "revision_from",
+        "revision_to", "fingerprint_json", "deploy_event_json", "started_at",
+        "status", "final_verdict", "final_label", "labeled_at",
+        "architecture_version", "created_at"]),
     "checkpoints": ("checkpoint_id", [
         "checkpoint_id", "episode_id", "stage", "scheduled_at", "session_id",
         "completed_at", "stage_verdict", "policy_status", "policy_version",
@@ -170,7 +170,13 @@ _DESCRIPTIONS = {
                    "inferred*/ tenants are runtime candidates",
     "services.status": "confirmed (catalog-backed) | candidate (inferred)",
     "episodes.episode_id": "Primary key; deterministic ep_<sha256("
-                           "correlation ref)[:16]> for trigger-born episodes",
+                           "external_ref)[:16]> for trigger-born episodes",
+    "episodes.external_ref": "Trigger correlation id: the Cloud Logging "
+                             "insertId (or synth-<hash> for insertId-less "
+                             "entries). Equals defer_verification's "
+                             "unique_id and agent_executions.insert_id - "
+                             "THE join key to the harness table. Derived "
+                             "from deploy_event_json at export time",
     "episodes.fingerprint_json": "Deterministic rollout fingerprint - the "
                                  "retrieval key for precedent matching",
     "episodes.deploy_event_json": "Parsed deploy event incl. external_ref "
@@ -336,8 +342,20 @@ def collect_episode_rows(db_path: str, episode_id: str, *,
         def rows(sql, *args):
             return [dict(r) for r in conn.execute(sql, args).fetchall()]
 
+        # external_ref is derived (like decisions.episode_id): the store
+        # keeps it inside deploy_event_json; the export promotes it to a
+        # first-class column - THE join key to agent_executions.insert_id
+        # and defer_verification's unique_id.
+        episode_row = dict(episode)
+        try:
+            episode_row["external_ref"] = (
+                json.loads(episode_row.get("deploy_event_json") or "{}")
+                or {}).get("external_ref") or None
+        except ValueError:
+            episode_row["external_ref"] = None
+
         out = {
-            "episodes": [dict(episode)],
+            "episodes": [episode_row],
             "services": rows("SELECT * FROM services WHERE service_uid = ?",
                              episode["service_uid"]),
             "checkpoints": rows(

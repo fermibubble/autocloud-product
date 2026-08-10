@@ -118,6 +118,8 @@ def test_collect_gathers_the_full_episode(finished_store):
     collected = bq_export.collect_episode_rows(db_path, episode_id)
     assert len(collected["episodes"]) == 1
     assert collected["episodes"][0]["final_label"] == "healthy"
+    # The derived join key to agent_executions.insert_id.
+    assert collected["episodes"][0]["external_ref"] == EVENT["insertId"]
     assert len(collected["checkpoints"]) == 2
     assert len(collected["outcomes"]) == 1
     # stage_verdict + next_check decisions per checkpoint.
@@ -196,6 +198,7 @@ def test_export_uploads_scrubbed_snapshot_rows(finished_store):
     assert "[RED]" in outcome_rows[0]["notes"]
     # JSON columns stay JSON-formatted strings.
     episode_rows, _ = by_table["rollout_episodes"]
+    assert episode_rows[0]["external_ref"] == EVENT["insertId"]
     import json as _json
     assert _json.loads(episode_rows[0]["deploy_event_json"])["service"] == "shop"
 

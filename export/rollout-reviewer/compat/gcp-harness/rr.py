@@ -101,7 +101,12 @@ def main() -> int:
     p = sub.add_parser("begin")
     p.add_argument("trigger", help="file path or inline JSON: the raw "
                                    "trigger event / deferred_check, verbatim")
-    p.add_argument("--session-id", default="")
+    # Defaults from RR_SESSION_ID so the harness can stamp its session
+    # onto the opened checkpoint without the agent knowing it — that is
+    # what joins rollout_checkpoints.session_id to
+    # agent_executions.session_id in BigQuery.
+    p.add_argument("--session-id",
+                   default=os.environ.get("RR_SESSION_ID", ""))
     p = sub.add_parser("context"); p.add_argument("episode"); p.add_argument("stage", nargs="?", default="")
     p = sub.add_parser("checks"); p.add_argument("episode"); p.add_argument("stage")
     p = sub.add_parser("record")

@@ -180,6 +180,33 @@ the module creates and writes only its own dataset.
   table from `bq_export.LATEST_VIEW_SQL`), which keep the newest
   snapshot per primary key. Deterministic `row_ids` additionally give
   BigQuery's short-window best-effort dedupe a chance.
+- **Linking to `agent_executions`.** Three join keys, coarsest to
+  finest:
+  - **Episode ↔ trigger** — `rollout_episodes.external_ref` is a
+    first-class column holding the trigger correlation id (the Cloud
+    Logging insertId, or the synthesized `synth-<hash>` for
+    insertId-less entries). Join
+    `agent_executions.insert_id = rollout_episodes_latest.external_ref`.
+    Note `event_id` (the CloudEvents ce-id) is per-DELIVERY — every
+    deferred-check fire gets a fresh one — so the episode-stable key is
+    always insert_id / unique_id, not event_id.
+  - **Checkpoint ↔ session** — `rollout_checkpoints.session_id` is the
+    harness session that opened/reviewed that stage. Export
+    `RR_SESSION_ID=<session id>` into the agent sandbox and `rr begin`
+    stamps it automatically; it then joins
+    `agent_executions.session_id` per turn.
+  - **Export provenance** — every exported row's `export_session` is
+    the session that ran the export.
+  - **Historical rows** exported before the `external_ref` column
+    existed still join via the deterministic id derivation, computable
+    in SQL:
+    ```sql
+    CONCAT('ep_', SUBSTR(TO_HEX(SHA256(ae.insert_id)), 1, 16))
+      = ep.episode_id
+    ```
+    Pre-existing tables need the additive column once:
+    `bq update --schema=bq/rollout_episodes.schema.json \
+    ${PROJECT_ID}:autocloud_rollout_intel.rollout_episodes`.
 - **Scrubbing**: report_md, notes, rationale, principals, and every
   JSON payload go through the hooks you pass (`scrub_text=
   deidentify_content`, `scrub_json=deidentify_json_structure`) — the

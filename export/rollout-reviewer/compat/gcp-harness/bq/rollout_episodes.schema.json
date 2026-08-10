@@ -3,7 +3,13 @@
     "name": "episode_id",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Primary key; deterministic ep_<sha256(correlation ref)[:16]> for trigger-born episodes"
+    "description": "Primary key; deterministic ep_<sha256(external_ref)[:16]> for trigger-born episodes"
+  },
+  {
+    "name": "external_ref",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Trigger correlation id: the Cloud Logging insertId (or synth-<hash> for insertId-less entries). Equals defer_verification's unique_id and agent_executions.insert_id - THE join key to the harness table. Derived from deploy_event_json at export time"
   },
   {
     "name": "service_uid",
