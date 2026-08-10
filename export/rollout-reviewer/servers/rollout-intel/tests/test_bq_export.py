@@ -26,6 +26,13 @@ _spec = importlib.util.spec_from_file_location(
 bq_export = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bq_export)
 
+_ddl_spec = importlib.util.spec_from_file_location(
+    "generate_ddl_under_test",
+    Path(__file__).resolve().parents[3] / "compat" / "gcp-harness" / "bq"
+    / "generate_ddl.py")
+generate_ddl = importlib.util.module_from_spec(_ddl_spec)
+_ddl_spec.loader.exec_module(generate_ddl)
+
 CATALOG = {"services": [
     {"tenant": "autocloud", "name": "checkout", "environment": "prod",
      "region": "us-east1", "runtime": "cloud-run",
@@ -101,15 +108,15 @@ def test_schema_covers_every_collected_column(finished_store):
     db_path, episode_id = finished_store
     collected = bq_export.collect_episode_rows(db_path, episode_id)
     for table, rows in collected.items():
-        schema_cols = {f["name"] for f in bq_export.bq_schema(table)}
+        schema_cols = {f["name"] for f in generate_ddl.bq_schema(table)}
         for row in rows:
             missing = set(row) - schema_cols
             assert not missing, f"{table}: columns {missing} not in schema"
         pk, _ = bq_export._TABLES[table]
-        by_name = {f["name"]: f for f in bq_export.bq_schema(table)}
+        by_name = {f["name"]: f for f in generate_ddl.bq_schema(table)}
         assert by_name[pk]["mode"] == "REQUIRED"
         assert by_name["exported_at"]["type"] == "TIMESTAMP"
-        for f in bq_export.bq_schema(table):
+        for f in generate_ddl.bq_schema(table):
             if f["name"].endswith("_json"):
                 assert f["type"] == "JSON"
 
@@ -324,23 +331,28 @@ def test_committed_schema_files_match_the_module():
     for table in bq_export._TABLES:
         committed = _json.loads(
             (bq_dir / f"rollout_{table}.schema.json").read_text())
-        assert committed == bq_export.bq_schema(table), \
+        assert committed == generate_ddl.bq_schema(table), \
             f"{table}: regenerate with `bq_export.py emit-schemas`"
     # The setup script exists alongside them.
     assert (bq_dir / "setup-bq.sh").exists()
+    assert (bq_dir / "setup-views.sh").exists()
+    assert (bq_dir / "generate_ddl.py").exists()
 
 
 def test_emit_views_and_no_runtime_ddl(finished_store, tmp_path):
-    sql = bq_export.emit_views_sql("proj-x", "ds-y")
+    sql = generate_ddl.emit_views_sql("proj-x", "ds-y")
     assert sql.count("CREATE OR REPLACE VIEW") == len(bq_export._TABLES)
     assert "`proj-x.ds-y.rollout_episodes_latest`" in sql
     # emit_schema_files round-trips.
-    written = bq_export.emit_schema_files(str(tmp_path / "out"))
+    written = generate_ddl.emit_schema_files(str(tmp_path / "out"))
     assert len(written) == len(bq_export._TABLES)
     # The module performs NO runtime DDL: no creation entry points, and
     # a bare export streams straight through a client that only knows
     # insert_rows_json (any DDL attempt would AttributeError on FakeBq).
-    assert not hasattr(bq_export, "ensure_dataset_and_tables")
+    for ddl_symbol in ("ensure_dataset_and_tables", "bq_schema",
+                       "emit_views_sql", "emit_schema_files",
+                       "LATEST_VIEW_SQL"):
+        assert not hasattr(bq_export, ddl_symbol)
     db_path, episode_id = finished_store
     summary = bq_export.export_episode(db_path, phase="outcome_final",
                                        episode_id=episode_id,

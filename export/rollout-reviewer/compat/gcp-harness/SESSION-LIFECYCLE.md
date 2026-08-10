@@ -243,22 +243,26 @@ the module creates and writes only its own dataset.
   — BigQuery rejected rows: retry the export (safe — duplicates are
   snapshot noise the views ignore, and the `episodes` commit marker
   is inserted LAST, so `*_latest` never advertises a torn phase).
-- **DDL runs out of band, not at runtime.** The committed
-  `bq/*.schema.json` files (standard `bq mk --schema` format, with
-  column descriptions) plus `bq/setup-bq.sh` create the dataset,
-  tables (day-partitioned on `exported_at`), and `*_latest` views at
-  deploy time:
+- **DDL runs out of band, not at runtime — and lives in its own
+  files.** `bq_export.py` contains ONLY row streaming;
+  `bq/generate_ddl.py` produces the committed `bq/*.schema.json` files
+  (standard `bq mk --schema` format, with column descriptions) and the
+  view SQL from the exporter's data-model maps, so the two can never
+  disagree (a parity test pins them). Two setup scripts:
 
   ```bash
-  PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-bq.sh
+  PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-bq.sh      # dataset + tables
+  PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-views.sh   # *_latest views
   ```
 
-  The schema files are GENERATED from the module
-  (`python3 bq_export.py emit-schemas`) and a parity test pins them to
-  `bq_schema()` — after a model change: regenerate, commit, re-run the
-  script. The exporter performs NO DDL at all: a missing table at
-  export time fails loudly with the instruction to run the setup
-  script, and transient insert failures are retried with backoff.
+  `setup-bq.sh` invokes `setup-views.sh` at the end, so a fresh
+  bootstrap needs only the first command; the view script is
+  independently re-runnable (every statement is CREATE OR REPLACE).
+  After a model change: `python3 bq/generate_ddl.py emit-schemas`,
+  commit, re-run the scripts (or `bq update --schema` additively). The
+  exporter performs NO DDL at all: a missing table at export time
+  fails loudly with the instruction to run the setup script, and
+  transient insert failures are retried with backoff.
 
 **Suggested event-router patch** (vendor `bq_export.py` and
 `session_db.py` next to `review_design.py`; add near the other env
@@ -357,17 +361,20 @@ bq_export.export_episode(db_path, episode_id=episode_id,
                          scrub_json=deidentify_json_structure)
 ```
 
-**One-time setup** — dataset, tables, and views all come from the DDL
-script (re-run it after any schema regeneration; it never touches
-existing datasets/tables, and views are CREATE OR REPLACE):
+**One-time setup** — `setup-bq.sh` creates the dataset + tables and
+then invokes `setup-views.sh` for the `*_latest` views (each script is
+independently re-runnable; existing datasets/tables are never touched,
+views are CREATE OR REPLACE):
 
 ```bash
 PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-bq.sh
+# views alone (e.g. after adding a table):
+#   PROJECT_ID=<project> ./compat/gcp-harness/bq/setup-views.sh
 # equivalent, table by table:
 #   bq mk --table --schema=bq/rollout_episodes.schema.json \
 #     --time_partitioning_field exported_at --time_partitioning_type DAY \
 #     ${PROJECT_ID}:autocloud_rollout_intel.rollout_episodes
-#   ... and views: python3 bq_export.py emit-views ${PROJECT_ID} | \
+#   ... and views: python3 bq/generate_ddl.py emit-views ${PROJECT_ID} | \
 #     bq query --use_legacy_sql=false
 ```
 
