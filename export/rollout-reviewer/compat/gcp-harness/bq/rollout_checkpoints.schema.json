@@ -24,7 +24,8 @@
   {
     "name": "session_id",
     "type": "STRING",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Harness session that most recently armed this checkpoint - normally the one that recorded it; a crash re-fire overwrites it with the new session. Joins agent_executions.session_id"
   },
   {
     "name": "completed_at",

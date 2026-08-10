@@ -12,6 +12,12 @@
     "description": "Trigger correlation id: the Cloud Logging insertId (or synth-<hash> for insertId-less entries). Equals defer_verification's unique_id and agent_executions.insert_id - THE join key to the harness table. Derived from deploy_event_json at export time"
   },
   {
+    "name": "event_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "CloudEvents id of the TRIGGERING delivery, when the forwarded event carried a top-level 'id'. Per-delivery, not per-episode: each deferred fire gets a fresh ce-id - find those in agent_executions via session_id / insert_id"
+  },
+  {
     "name": "service_uid",
     "type": "STRING",
     "mode": "NULLABLE",

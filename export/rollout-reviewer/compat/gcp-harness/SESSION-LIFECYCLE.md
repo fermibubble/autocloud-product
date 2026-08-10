@@ -176,25 +176,45 @@ the module creates and writes only its own dataset.
   `exported_at`, `export_phase` (`ladder_complete`, then
   `outcome_final` after labeling re-exports with the final_label), and
   `export_session`. Duplicate snapshots from at-least-once delivery are
-  expected; read through the `*_latest` views (one `CREATE VIEW` per
-  table from `bq_export.LATEST_VIEW_SQL`), which keep the newest
-  snapshot per primary key. Deterministic `row_ids` additionally give
-  BigQuery's short-window best-effort dedupe a chance.
-- **Linking to `agent_executions`.** Three join keys, coarsest to
+  expected; deterministic `row_ids` additionally give BigQuery's
+  short-window best-effort dedupe a chance.
+- **What `*_latest` is (and is not).** Nothing to do with SQLite WAL —
+  the WAL is merged into the .db before it ever leaves the sandbox.
+  The versioning is in BIGQUERY: because exports append snapshots, the
+  base table holds the same `episode_id` several times (once at ladder
+  end — `final_label` still NULL — again after the outcome label
+  lands, plus any retry duplicates). `rollout_episodes_latest` is
+  simply `ROW_NUMBER() OVER (PARTITION BY episode_id ORDER BY
+  exported_at DESC, outcome_final-first, export_session) = 1`: exactly
+  one row per episode, the most recent state. It is `SELECT *` over
+  the base table, so EVERY column — `external_ref`, `event_id`,
+  `session_id`, all of them — appears in the view automatically; query
+  the base table only when you want the version history itself.
+- **Linking to `agent_executions`.** The join keys, coarsest to
   finest:
   - **Episode ↔ trigger** — `rollout_episodes.external_ref` is a
     first-class column holding the trigger correlation id (the Cloud
     Logging insertId, or the synthesized `synth-<hash>` for
     insertId-less entries). Join
     `agent_executions.insert_id = rollout_episodes_latest.external_ref`.
-    Note `event_id` (the CloudEvents ce-id) is per-DELIVERY — every
-    deferred-check fire gets a fresh one — so the episode-stable key is
-    always insert_id / unique_id, not event_id.
+  - **Episode ↔ triggering delivery** — `rollout_episodes.event_id`
+    holds the CloudEvents id of the delivery that BIRTHED the episode,
+    when the forwarded event carried a top-level `id` (structured
+    mode; in binary mode, stamp `data["id"] = <ce-id>` in the router
+    before forwarding if you want it captured). ce-ids are
+    per-DELIVERY — every deferred-check fire gets a fresh one — so the
+    episode-stable key is always insert_id / unique_id; the later
+    fires' event_ids live in `agent_executions`, reachable via the
+    session_id join below.
   - **Checkpoint ↔ session** — `rollout_checkpoints.session_id` is the
-    harness session that opened/reviewed that stage. Export
-    `RR_SESSION_ID=<session id>` into the agent sandbox and `rr begin`
-    stamps it automatically; it then joins
-    `agent_executions.session_id` per turn.
+    harness session that most recently ARMED that stage — normally the
+    one that recorded it. Export `RR_SESSION_ID=<session id>` into the
+    agent sandbox and `rr begin` stamps it automatically; it then joins
+    `agent_executions.session_id` per turn. When a crashed turn is
+    re-fired and a NEW session picks up the same open checkpoint (it
+    can happen; the open is idempotent), the column reflects the new —
+    completing — session; the earlier attempt's session still has its
+    own `agent_executions` row, reachable via the insert_id join.
   - **Export provenance** — every exported row's `export_session` is
     the session that ran the export.
   - **Historical rows** exported before the `external_ref` column

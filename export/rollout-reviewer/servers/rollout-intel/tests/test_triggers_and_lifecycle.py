@@ -237,6 +237,10 @@ def test_generic_event_takes_final_resource_and_normalizes_zone():
     assert ev["service"] == "gke-cluster-1"
     assert ev["region"] == "us-central1"  # us-central1-a normalized
     assert ev["trigger"]["family"] == "generic"
+    # A top-level CloudEvents id is captured as provenance; events
+    # without one simply omit the key.
+    assert ev["trigger"]["event_id"] == GENERIC_EVENT["id"]
+    assert "event_id" not in triggers.parse_trigger(GKE_EVENT)["trigger"]
 
 
 def test_bare_container_resource_falls_back_to_operation_target():

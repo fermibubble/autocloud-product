@@ -43,6 +43,7 @@ POLICY = {
 
 EVENT = {
     "insertId": "bq-export-trigger-1",
+    "id": "ce-delivery-42",  # CloudEvents structured-mode id
     "logName": "projects/p/logs/cloudaudit.googleapis.com%2Factivity",
     "protoPayload": {"methodName": "io.k8s.apps.v1.deployments.update",
                      "serviceName": "k8s.io",
@@ -118,8 +119,10 @@ def test_collect_gathers_the_full_episode(finished_store):
     collected = bq_export.collect_episode_rows(db_path, episode_id)
     assert len(collected["episodes"]) == 1
     assert collected["episodes"][0]["final_label"] == "healthy"
-    # The derived join key to agent_executions.insert_id.
+    # The derived join keys: insertId to agent_executions.insert_id,
+    # and the triggering delivery's CloudEvents id.
     assert collected["episodes"][0]["external_ref"] == EVENT["insertId"]
+    assert collected["episodes"][0]["event_id"] == "ce-delivery-42"
     assert len(collected["checkpoints"]) == 2
     assert len(collected["outcomes"]) == 1
     # stage_verdict + next_check decisions per checkpoint.

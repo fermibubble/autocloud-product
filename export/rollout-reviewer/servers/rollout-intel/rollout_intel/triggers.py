@@ -314,6 +314,11 @@ def parse_trigger(event: dict) -> dict:
             "log_name": str(event.get("logName", "")),
             "insert_id": ref,
             "ref_basis": ref_basis,
+            # The CloudEvents id of the TRIGGERING delivery, when the
+            # forwarded event carries one (structured-mode top-level
+            # "id"). Per-delivery, not per-episode: later deferred
+            # fires get fresh ce-ids of their own.
+            **({"event_id": str(event["id"])} if event.get("id") else {}),
             "timestamp": str(event.get("timestamp", "")),
             **({"cluster": str(labels.get("cluster_name", ""))}
                if labels.get("cluster_name") else {}),
